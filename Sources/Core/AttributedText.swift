@@ -361,7 +361,6 @@ public final class RenderedAttributedText {
         }
 
         renderedAttachment.setState(.failed(error))
-        renderedAttachment.attachment.finishLoading()
         emit(
             .attachmentStateChanged(
                 id: id,
@@ -382,7 +381,6 @@ public final class RenderedAttributedText {
         }
 
         renderedAttachment.setState(.cancelled)
-        renderedAttachment.attachment.finishLoading()
         emit(
             .attachmentStateChanged(
                 id: id,

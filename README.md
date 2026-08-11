@@ -5,6 +5,10 @@
 
 Attributed is a TextKit-first Swift DSL for building `NSAttributedString` with composable paragraphs, inline styles, links, and explicit attribute inheritance. It supports iOS and macOS and bridges the same TextKit rendering into SwiftUI.
 
+<p align="center">
+  <img src="docs/assets/feature-showcase.png" alt="Attributed feature showcase running on iPad" height="400">
+</p>
+
 ## Requirements
 
 - Swift 5.9 or later
@@ -143,7 +147,7 @@ import SwiftUI
 ATextView(document)
 ```
 
-The bridge uses TextKit 2 on every supported platform and provides the foundation for image attachments, custom attachment views, and layout invalidation. The `A`-prefixed facade avoids collisions with `SwiftUI.Text`, `SwiftUI.Link`, and `SwiftUI.Image`.
+The bridge uses TextKit 2 on every supported platform and provides image attachment rendering and layout invalidation. The `A`-prefixed facade avoids collisions with `SwiftUI.Text`, `SwiftUI.Link`, and `SwiftUI.Image`.
 
 Custom interaction handling and custom-view attachments will extend these host adapters as those features are implemented.
 
@@ -169,7 +173,7 @@ Most applications should depend only on `Attributed`.
 - URL links and custom interaction registration
 - Synchronous and asynchronous image attachments
 - Fixed, intrinsic, and adaptive image sizing
-- Injectable remote image provider with an optional temporary disk cache
+- Injectable remote image provider with independently configurable memory and temporary disk caches
 - iOS and macOS support
 
 ## Planned

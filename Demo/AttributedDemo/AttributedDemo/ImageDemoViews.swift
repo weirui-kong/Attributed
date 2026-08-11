@@ -284,7 +284,7 @@ struct ImageDirectionDemoView: View {
 struct AsyncImageStatesDemoView: View {
     private let rendered = AAttributedText {
         AParagraph {
-            "Delayed async success starts with the default loading indicator and then expands to the loaded image."
+            "Delayed async success starts empty and then expands to the loaded image."
         }
         .font(.systemFont(ofSize: 17))
         .paragraphSpacing(12)
@@ -323,7 +323,7 @@ struct AsyncImageStatesDemoView: View {
         DemoSection(
             title: "Async Image States",
             rendered: rendered,
-            details: "The successful source verifies the default loading indicator plus content and layout updates. The failed source verifies that an explicit placeholder remains stable."
+            details: "The successful source verifies empty-to-image content and layout updates. The failed source verifies that an explicit placeholder remains stable."
         )
     }
 }
@@ -403,7 +403,7 @@ struct RemoteImageGalleryDemoView: View {
     }
 }
 
-private enum DemoURLs {
+enum DemoURLs {
     static let landscape = URL(
         string: "https://picsum.photos/seed/attributed-landscape/800/400"
     )!
@@ -418,7 +418,7 @@ private enum DemoURLs {
     ]
 }
 
-private enum DemoImages {
+enum DemoImages {
     #if canImport(UIKit)
     static let placeholder = UIGraphicsImageRenderer(
         size: CGSize(width: 320, height: 160)

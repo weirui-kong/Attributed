@@ -491,7 +491,7 @@ final class CoreTests: XCTestCase {
     }
 
     @MainActor
-    func testAsyncImageWithoutPlaceholderUsesLoadingIndicatorBounds() {
+    func testAsyncImageWithoutPlaceholderStartsWithoutImageOrBounds() {
         let rendered = AttributedText {
             Paragraph {
                 Image(
@@ -503,16 +503,17 @@ final class CoreTests: XCTestCase {
         }.render()
         let attachment = rendered.attachments[0].attachment
 
-        XCTAssertTrue(attachment.usesTextAttachmentView)
+        XCTAssertFalse(attachment.usesTextAttachmentView)
+        XCTAssertNil(attachment.image)
         XCTAssertEqual(
             attachment.layoutSize(availableWidth: nil),
-            CGSize(width: 24, height: 24)
+            .zero
         )
         rendered.cancel()
     }
 
     @MainActor
-    func testAsyncImageWithPlaceholderDoesNotUseLoadingIndicatorView() {
+    func testAsyncImageWithPlaceholderUsesPlaceholderBounds() {
         let placeholder = makeImage(size: CGSize(width: 18, height: 12))
         let rendered = AttributedText {
             Paragraph {
@@ -527,6 +528,7 @@ final class CoreTests: XCTestCase {
         let attachment = rendered.attachments[0].attachment
 
         XCTAssertFalse(attachment.usesTextAttachmentView)
+        XCTAssertTrue(attachment.image === placeholder)
         XCTAssertEqual(attachment.layoutSize(availableWidth: nil), placeholder.size)
         rendered.cancel()
     }

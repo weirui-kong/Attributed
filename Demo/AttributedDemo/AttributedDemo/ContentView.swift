@@ -7,6 +7,12 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             List {
+                Section("Showcase") {
+                    NavigationLink("All Features") {
+                        FeatureShowcaseDemoView()
+                    }
+                }
+
                 Section("Typography") {
                     NavigationLink("Long Text") {
                         LongTextDemoView()
