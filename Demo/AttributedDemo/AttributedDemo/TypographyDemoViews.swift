@@ -42,22 +42,22 @@ struct MixedStylesDemoView: View {
         AParagraph {
             AText("Large Bold")
                 .font(.boldSystemFont(ofSize: 28))
-                .foregroundColor(.blue)
+                .foregroundColor(DemoColors.blue)
             "  "
             AText("small secondary")
                 .font(.systemFont(ofSize: 13))
-                .foregroundColor(.gray)
+                .foregroundColor(DemoColors.secondary)
         }
         .paragraphSpacing(14)
 
         AParagraph {
             AText("Highlighted")
-                .foregroundColor(.black)
-                .backgroundColor(.yellow)
+                .foregroundColor(DemoColors.primary)
+                .backgroundColor(DemoColors.highlight)
             "  "
             AText("underlined")
-                .foregroundColor(.purple)
-                .underline(.single, color: .purple)
+                .foregroundColor(DemoColors.purple)
+                .underline(.single, color: DemoColors.purple)
             "  "
             AText("spaced")
                 .kern(3)
@@ -95,20 +95,20 @@ struct InlineCompositionDemoView: View {
                 if showsBadge {
                     AText("ACTIVE")
                         .font(.boldSystemFont(ofSize: 12))
-                        .foregroundColor(.white)
-                        .backgroundColor(.green)
+                        .foregroundColor(DemoColors.badgeForeground)
+                        .backgroundColor(DemoColors.green)
                 }
 
                 "\nTags: "
 
                 for tag in tags {
                     AText("[\(tag)] ")
-                        .foregroundColor(.orange)
+                        .foregroundColor(DemoColors.orange)
                 }
 
                 "\nRead "
                 ALink("the example", url: URL(string: "https://example.com")!)
-                    .foregroundColor(.blue)
+                    .foregroundColor(DemoColors.blue)
                     .underline()
                 "."
             }
@@ -163,7 +163,7 @@ struct LinkDemoView: View {
         AParagraph {
             "Visit "
             ALink("example.com", url: URL(string: "https://example.com")!)
-                .foregroundColor(.blue)
+                .foregroundColor(DemoColors.blue)
                 .underline()
             " to verify the standard URL attribute."
         }
@@ -177,4 +177,22 @@ struct LinkDemoView: View {
             details: "URL links contain both the standard link attribute and Attributed's interaction ID. Custom actions need the future host adapter."
         )
     }
+}
+
+private enum DemoColors {
+    #if canImport(UIKit)
+    static let primary = PlatformColor.label
+    static let secondary = PlatformColor.secondaryLabel
+    static let highlight = PlatformColor.tertiarySystemFill
+    #elseif canImport(AppKit)
+    static let primary = PlatformColor.labelColor
+    static let secondary = PlatformColor.secondaryLabelColor
+    static let highlight = PlatformColor.controlBackgroundColor
+    #endif
+
+    static let blue = PlatformColor.systemBlue
+    static let purple = PlatformColor.systemPurple
+    static let green = PlatformColor.systemGreen
+    static let orange = PlatformColor.systemOrange
+    static let badgeForeground = PlatformColor.white
 }

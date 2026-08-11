@@ -5,7 +5,7 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        NavigationStack {
+        NavigationView {
             List {
                 Section("Typography") {
                     NavigationLink("Long Text") {
@@ -35,23 +35,44 @@ struct ContentView: View {
                     }
                 }
 
-                Section("Planned") {
-                    NavigationLink("Attachments") {
-                        PlannedDemoView(
-                            title: "Attachments",
-                            message: "Synchronous image attachments will be added after the Core attachment runtime is implemented."
-                        )
+                Section("Attachments") {
+                    NavigationLink("Image Overview") {
+                        ImageDemoView()
                     }
 
-                    NavigationLink("Async Images") {
-                        PlannedDemoView(
-                            title: "Async Images",
-                            message: "Async loading, placeholders, and layout updates will be tested here."
-                        )
+                    NavigationLink("Sizing") {
+                        ImageSizingDemoView()
+                    }
+
+                    NavigationLink("Inline Alignment") {
+                        ImageAlignmentDemoView()
+                    }
+
+                    NavigationLink("Wrapping & Long Text") {
+                        ImageWrappingDemoView()
+                    }
+
+                    NavigationLink("Image Direction") {
+                        ImageDirectionDemoView()
+                    }
+
+                    NavigationLink("Async States") {
+                        AsyncImageStatesDemoView()
+                    }
+
+                    NavigationLink("Remote Images") {
+                        RemoteImageDemoView()
+                    }
+
+                    NavigationLink("Remote Gallery") {
+                        RemoteImageGalleryDemoView()
                     }
                 }
             }
             .navigationTitle("Attributed Demo")
         }
+        #if os(iOS)
+        .navigationViewStyle(.stack)
+        #endif
     }
 }

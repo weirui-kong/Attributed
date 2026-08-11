@@ -3,13 +3,13 @@
 > [!WARNING]
 > 🚧 **Under Development** — The current API is an early v0.1 design and may change before the first stable release.
 
-Attributed is a Swift DSL for building `NSAttributedString` with composable paragraphs, inline styles, links, and explicit attribute inheritance. It supports iOS and macOS and keeps optional integrations separate from the rendering core.
+Attributed is a TextKit-first Swift DSL for building `NSAttributedString` with composable paragraphs, inline styles, links, and explicit attribute inheritance. It supports iOS and macOS and bridges the same TextKit rendering into SwiftUI.
 
 ## Requirements
 
 - Swift 5.9 or later
-- iOS 15 or later
-- macOS 12 or later
+- iOS 16 or later
+- macOS 13 or later
 
 ## Installation
 
@@ -96,22 +96,56 @@ AAttributedText {
 }
 ```
 
-## SwiftUI
+Inline images use the same paragraph builder:
 
-Standard attributed-string content can be displayed in SwiftUI by converting the rendered result:
+```swift
+AParagraph {
+    "Status "
+
+    AImage(statusImage, accessibilityLabel: "Online")
+        .size(.fixed(width: 18, height: 18))
+        .alignment(.center)
+}
+```
+
+Remote images require an injected provider. `AttributedUtility` includes a simple URLSession implementation:
+
+```swift
+import AttributedUtility
+
+ARemoteImageEnvironment.provider = ImageDownloader()
+
+let image = AImage(
+    remoteURL: imageURL,
+    placeholder: placeholder
+)
+.size(.adaptive(maxWidth: 320, maxHeight: 240))
+```
+
+## Display
+
+UIKit and AppKit can use the TextKit-backed host directly:
+
+```swift
+import Attributed
+
+let rendered = document.render()
+let textView = ATextKitView()
+textView.display(rendered)
+```
+
+SwiftUI uses a platform bridge around that same host:
 
 ```swift
 import Attributed
 import SwiftUI
 
-let rendered = document.render()
-
-Text(AttributedString(rendered.attributedString))
+ATextView(document)
 ```
 
-The `A`-prefixed facade avoids collisions with `SwiftUI.Text`, `SwiftUI.Link`, and `SwiftUI.Image`.
+The bridge uses TextKit 2 on every supported platform and provides the foundation for image attachments, custom attachment views, and layout invalidation. The `A`-prefixed facade avoids collisions with `SwiftUI.Text`, `SwiftUI.Link`, and `SwiftUI.Image`.
 
-Custom interactions, TextKit-specific layout invalidation, and asynchronous attachments will use dedicated host adapters as those features are implemented.
+Custom interaction handling and custom-view attachments will extend these host adapters as those features are implemented.
 
 ## Modules
 
@@ -119,6 +153,8 @@ Custom interactions, TextKit-specific layout invalidation, and asynchronous atta
 | --- | --- |
 | `Attributed` | Primary facade containing the `A`-prefixed public aliases. |
 | `AttributedCore` | DSL nodes, attribute inheritance, rendering, and interaction state. |
+| `AttributedTextKit` | UIKit and AppKit text hosts and attachment integration. |
+| `AttributedSwiftUI` | SwiftUI bridges backed by the TextKit host. |
 | `AttributedUtility` | Optional and replaceable integrations such as remote image loading. |
 
 Most applications should depend only on `Attributed`.
@@ -131,15 +167,15 @@ Most applications should depend only on `Attributed`.
 - Alignment, writing direction, line spacing, and paragraph spacing
 - Raw strings, conditionals, and loops in result builders
 - URL links and custom interaction registration
+- Synchronous and asynchronous image attachments
+- Fixed, intrinsic, and adaptive image sizing
+- Injectable remote image provider with an optional temporary disk cache
 - iOS and macOS support
 
 ## Planned
 
-- Synchronous image attachments
-- Fixed, intrinsic, and adaptive attachment sizing
-- Asynchronous images with placeholders and update observation
-- UIKit and AppKit host adapters
-- Optional remote image loading in `AttributedUtility`
+- Custom-view attachment providers
+- Additional image loading and cache policies
 
 ## Demo
 

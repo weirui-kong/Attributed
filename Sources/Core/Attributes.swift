@@ -21,6 +21,16 @@ struct TextAttributes {
 
     public init() {}
 
+    static var rootDefaults: Self {
+        var result = Self()
+        #if canImport(UIKit)
+        result.foregroundColor = .label
+        #elseif canImport(AppKit)
+        result.foregroundColor = .labelColor
+        #endif
+        return result
+    }
+
     func merging(_ child: Self) -> Self {
         var result = self
         result.font = child.font ?? font

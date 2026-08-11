@@ -31,8 +31,7 @@ struct RenderedSample: View {
     let rendered: ARenderedAttributedText
 
     var body: some View {
-        SwiftUI.Text(AttributedString(rendered.attributedString))
-            .textSelection(.enabled)
+        ATextView(rendered: rendered)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -42,11 +41,20 @@ struct PlannedDemoView: View {
     let message: String
 
     var body: some View {
-        ContentUnavailableView(
-            title,
-            systemImage: "hammer",
-            description: SwiftUI.Text(message)
-        )
+        VStack(spacing: 16) {
+            Image(systemName: "hammer")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+
+            SwiftUI.Text(title)
+                .font(.headline)
+
+            SwiftUI.Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
         .navigationTitle(title)
     }
 }

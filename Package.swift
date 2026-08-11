@@ -7,8 +7,8 @@ import PackageDescription
 let package = Package(
     name: "Attributed",
     platforms: [
-        .iOS(.v15),
-        .macOS(.v12)
+        .iOS(.v16),
+        .macOS(.v13)
     ],
     products: [
         .library(
@@ -20,6 +20,14 @@ let package = Package(
             targets: ["AttributedCore"]
         ),
         .library(
+            name: "AttributedTextKit",
+            targets: ["AttributedTextKit"]
+        ),
+        .library(
+            name: "AttributedSwiftUI",
+            targets: ["AttributedSwiftUI"]
+        ),
+        .library(
             name: "AttributedUtility",
             targets: ["AttributedUtility"]
         )
@@ -27,11 +35,28 @@ let package = Package(
     targets: [
         .target(
             name: "Attributed",
-            dependencies: ["AttributedCore"]
+            dependencies: [
+                "AttributedCore",
+                "AttributedTextKit",
+                "AttributedSwiftUI"
+            ]
         ),
         .target(
             name: "AttributedCore",
             path: "Sources/Core"
+        ),
+        .target(
+            name: "AttributedTextKit",
+            dependencies: ["AttributedCore"],
+            path: "Sources/TextKit"
+        ),
+        .target(
+            name: "AttributedSwiftUI",
+            dependencies: [
+                "AttributedCore",
+                "AttributedTextKit"
+            ],
+            path: "Sources/SwiftUI"
         ),
         .target(
             name: "AttributedUtility",
@@ -46,6 +71,11 @@ let package = Package(
             name: "AttributedCoreTests",
             dependencies: ["AttributedCore"],
             path: "Tests/CoreTests"
+        ),
+        .testTarget(
+            name: "AttributedTextKitTests",
+            dependencies: ["AttributedTextKit"],
+            path: "Tests/TextKitTests"
         ),
         .testTarget(
             name: "AttributedUtilityTests",
