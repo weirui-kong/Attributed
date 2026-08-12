@@ -271,9 +271,9 @@ public final class RenderedAttributedText {
             switch renderedAttachment.attachment.source {
             case .image:
                 continue
-            case let .async(provider):
+            case let .async(loader):
                 startLoading(renderedAttachment) {
-                    try await provider()
+                    try await loader()
                 }
             case let .remote(url):
                 startLoading(renderedAttachment) {
@@ -286,12 +286,12 @@ public final class RenderedAttributedText {
     @MainActor
     private func startLoading(
         _ renderedAttachment: RenderedAttachment,
-        provider: @escaping @Sendable () async throws -> PlatformImage
+        loader: @escaping @Sendable () async throws -> PlatformImage
     ) {
         let id = renderedAttachment.id
         let task = Task { @MainActor [weak self, weak renderedAttachment] in
             do {
-                let image = try await provider()
+                let image = try await loader()
                 try Task.checkCancellation()
 
                 guard let renderedAttachment else {

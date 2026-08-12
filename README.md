@@ -149,7 +149,7 @@ ATextView(document)
 
 The bridge uses TextKit 2 on every supported platform and provides image attachment rendering and layout invalidation. The `A`-prefixed facade avoids collisions with `SwiftUI.Text`, `SwiftUI.Link`, and `SwiftUI.Image`.
 
-Custom interaction handling and custom-view attachments will extend these host adapters as those features are implemented.
+Custom interaction handling may extend these host adapters in future releases. Attachments intentionally remain image-only; arbitrary UIKit, AppKit, and SwiftUI views are outside the package scope.
 
 ## Modules
 
@@ -178,7 +178,6 @@ Most applications should depend only on `Attributed`.
 
 ## Planned
 
-- Custom-view attachment providers
 - Additional image loading and cache policies
 
 ## Demo

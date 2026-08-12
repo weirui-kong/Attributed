@@ -2,6 +2,8 @@
 
 `AImage` is an inline node backed by `NSTextAttachment`. It can appear anywhere another inline node is accepted.
 
+Image attachments are intentionally the only supported attachment content. The API accepts `PlatformImage` values and does not accept `UIView`, `NSView`, SwiftUI `View`, layer-backed content, video, or arbitrary attachment providers. The package does not drive animated image playback; callers should treat attached images as static content.
+
 ## Sources
 
 ```swift
@@ -48,7 +50,7 @@ Intrinsic and adaptive attachments without a placeholder initially occupy zero s
 
 On failure or cancellation, an explicit placeholder remains installed. Without a placeholder, the attachment remains empty and exposes the terminal state through `ARenderedAttachment`. A synchronously cached remote image bypasses the loading state.
 
-The package does not yet expose a public custom-view attachment API.
+Custom-view attachments are intentionally outside the package scope. `ImageTextAttachment` forces `usesTextAttachmentView` to `false`, so placeholders and resolved images remain on TextKit's image-backed attachment path.
 
 ## Accessibility
 

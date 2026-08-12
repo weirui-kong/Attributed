@@ -28,6 +28,8 @@ Explicit fixed colors remain fixed. Callers that need adaptation should pass pla
 
 Placeholder and resolved image content must use the same `ImageTextAttachment`. An async or remote image without an explicit placeholder remains empty until resolution. The implementation must report `usesTextAttachmentView == false` and must not use `NSTextAttachmentViewProvider`, because attachment views can be recycled as TextKit layout fragments enter and leave the viewport.
 
+The host must render attachments as platform images only. It must not mount custom UIKit, AppKit, SwiftUI, or layer-backed views inside text layout.
+
 TextKit hosts must respond to attachment update types as follows:
 
 - Content change: invalidate rendering attributes and redraw.

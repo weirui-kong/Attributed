@@ -5,6 +5,7 @@
 - Keep document construction independent from SwiftUI.
 - Use `NSAttributedString` as the rendered representation.
 - Use TextKit 2 as the only built-in display engine.
+- Support image-backed attachments only; do not introduce arbitrary view attachments.
 - Keep optional remote downloading outside Core.
 - Expose a facade that avoids collisions with SwiftUI names.
 
@@ -36,3 +37,15 @@ The dependency graph is declared in [`Package.swift`](../../Package.swift).
 ## Public facade
 
 The `A` prefix is the supported collision-avoidance mechanism for names such as `Text`, `Link`, and `Image`. It is implemented with type aliases rather than wrapper types, so facade and underlying values have identical behavior.
+
+## Attachment scope
+
+The attachment model is intentionally narrow:
+
+- `AImage` is the only built-in attachment node.
+- A source resolves to one `PlatformImage`.
+- Async and remote loading may change the image and layout, but not the attachment content type.
+- UIKit, AppKit, SwiftUI, and Core Animation view/layer embedding are not supported.
+- `NSTextAttachmentViewProvider` must not be introduced by the built-in image path.
+
+This constraint keeps Core independent from view lifecycle management and prevents TextKit viewport recycling from affecting attachment visibility.
