@@ -23,7 +23,9 @@ atr::CFRef<CGColorRef> resolveColor(ATRPlatformColor *color, ATRPlatformAppearan
     }];
     return atr::CFRef<CGColorRef>::adopt(result);
 #else
-    UIColor *resolved = appearance ? [color resolvedColorWithTraitCollection:appearance] : color;
+    // CGColor is owned by the UIColor; keep the owner alive until retained.
+    __attribute__((objc_precise_lifetime)) UIColor *resolved =
+        appearance ? [color resolvedColorWithTraitCollection:appearance] : color;
     return atr::CFRef<CGColorRef>::retain(resolved.CGColor);
 #endif
 }

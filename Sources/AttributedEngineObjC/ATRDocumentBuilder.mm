@@ -153,6 +153,10 @@ void check(atr::BuildStatus status) {
                             locations:(const double *)locations
                                 count:(NSUInteger)count
                            descriptor:(ATRGradientDescriptor)descriptor {
+    if (count == 0) {
+        [NSException raise:NSInvalidArgumentException format:@"A gradient needs at least one color."];
+    }
+
     atr::Gradient gradient;
     gradient.colors.assign(colors, colors + count);
 

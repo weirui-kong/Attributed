@@ -6,6 +6,8 @@
 #import "ATRDocumentBuilder.h"
 #import "ATRTextDisplayView.h"
 
+#include <cmath>
+
 namespace {
 
 ATRTextStyle fontStyle(int32_t font) {
@@ -49,6 +51,48 @@ ATRPlatformImage *makeImage(CGSize size) {
         [context fillRect:CGRectMake(0, 0, size.width, size.height)];
     }];
 #endif
+}
+
+#if TARGET_OS_OSX
+using TestWindow = NSWindow;
+using TestScrollView = NSScrollView;
+#else
+using TestWindow = UIWindow;
+using TestScrollView = UIScrollView;
+#endif
+
+TestWindow *makeWindow() {
+#if TARGET_OS_OSX
+    NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 320, 600)
+                                                   styleMask:NSWindowStyleMaskBorderless
+                                                     backing:NSBackingStoreBuffered
+                                                       defer:YES];
+    window.releasedWhenClosed = NO;
+    return window;
+#else
+    return [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, 320, 600)];
+#endif
+}
+
+void addToWindow(ATRPlatformView *view, TestWindow *window) {
+#if TARGET_OS_OSX
+    [window.contentView addSubview:view];
+#else
+    [window addSubview:view];
+#endif
+}
+
+// A scroll view with `content` as its scrolled content.
+TestScrollView *makeScrollView(ATRPlatformView *content, CGSize contentSize) {
+#if TARGET_OS_OSX
+    NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 320, 300)];
+    scrollView.documentView = content;
+#else
+    UIScrollView *scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 0, 320, 300)];
+    scrollView.contentSize = contentSize;
+    [scrollView addSubview:content];
+#endif
+    return scrollView;
 }
 
 } // namespace
@@ -233,14 +277,9 @@ ATRPlatformImage *makeImage(CGSize size) {
     display.frame = CGRectMake(0, 0, 320, size.height);
     XCTAssertGreaterThan(size.height, 1400);
 
-#if TARGET_OS_OSX
-    NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 320, 300)];
-    scrollView.documentView = display;
-#else
-    UIScrollView *scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 0, 320, 300)];
-    scrollView.contentSize = size;
-    [scrollView addSubview:display];
-#endif
+    TestScrollView *scrollView = makeScrollView(display, size);
+    TestWindow *window = makeWindow();
+    addToWindow(scrollView, window);
     layoutNow(display);
 
     XCTAssertEqual(display.observedScrollView, scrollView);
@@ -260,6 +299,53 @@ ATRPlatformImage *makeImage(CGSize size) {
     XCTAssertTrue([scrolled containsIndex:10]);
     XCTAssertTrue([scrolled containsIndex:12]);
     XCTAssertEqual(scrolled.firstIndex, 9u);
+}
+
+- (ATRTextDisplayView *)tiledDisplay {
+    ATRTextDisplayView *display = [[ATRTextDisplayView alloc] initWithFrame:CGRectMake(0, 0, 320, 1600)];
+    display.document = [self longDocument];
+    display.viewportRenderingEnabled = YES;
+    display.tileHeight = 100;
+    return display;
+}
+
+- (void)testNoObservationOutsideAWindow {
+    ATRTextDisplayView *display = [self tiledDisplay];
+    TestScrollView *scrollView = makeScrollView(display, CGSizeMake(320, 1600));
+    layoutNow(display);
+
+    XCTAssertNil(display.observedScrollView);
+    XCTAssertEqual(display.renderedTileIndexes.count, 0u);
+
+    TestWindow *window = makeWindow();
+    addToWindow(scrollView, window);
+    layoutNow(display);
+
+    XCTAssertEqual(display.observedScrollView, scrollView);
+}
+
+- (void)testLeavingTheWindowReleasesTheScrollView {
+    ATRTextDisplayView *display = [self tiledDisplay];
+    __weak TestScrollView *weakScrollView = nil;
+    TestWindow *window = makeWindow();
+
+    @autoreleasepool {
+        TestScrollView *scrollView = makeScrollView(display, CGSizeMake(320, 1600));
+        weakScrollView = scrollView;
+        addToWindow(scrollView, window);
+        layoutNow(display);
+        XCTAssertEqual(display.observedScrollView, scrollView);
+
+        [scrollView removeFromSuperview];
+        XCTAssertNil(display.observedScrollView);
+        [display removeFromSuperview];
+    }
+
+    // The display view outlives the scroll view without keeping it alive or
+    // pointing at freed memory.
+    XCTAssertNil(weakScrollView);
+    layoutNow(display);
+    display.viewportRenderingEnabled = NO;
 }
 
 - (void)testWholeSurfaceWithoutViewportRendering {
@@ -308,14 +394,57 @@ ATRPlatformImage *makeImage(CGSize size) {
     display.document = [self interactiveDocument];
     layoutNow(display);
 
-    CALayer *content = display.layer.sublayers.firstObject;
+    // Hit views add their own layers, so look for any drawn sublayer rather
+    // than assuming an order.
+    auto drawn = [&] {
+        for (CALayer *layer in display.layer.sublayers) {
+            if (layer.contents) {
+                return YES;
+            }
+        }
+
+        return NO;
+    };
+    XCTAssertFalse(drawn());
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:3];
 
-    while (!content.contents && deadline.timeIntervalSinceNow > 0) {
+    while (!drawn() && deadline.timeIntervalSinceNow > 0) {
         [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
     }
 
-    XCTAssertNotNil(content.contents);
+    XCTAssertTrue(drawn());
+}
+
+- (void)testLateAsynchronousResultNeverReplacesANewerOne {
+    ATRTextDisplayView *display = [[ATRTextDisplayView alloc] initWithFrame:CGRectMake(0, 0, 400, 200)];
+    display.rendersAsynchronously = YES;
+    display.document = [self interactiveDocument];
+    layoutNow(display);
+
+    // Same width and content, so the same content generation: only the
+    // per-layer request decides which bitmap wins.
+    display.frame = CGRectMake(0, 0, 400, 80);
+    layoutNow(display);
+
+    auto surface = [&]() -> CALayer * {
+        for (CALayer *layer in display.layer.sublayers) {
+            if (CGRectGetWidth(layer.bounds) == 400) {
+                return layer;
+            }
+        }
+
+        return nil;
+    };
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:1];
+
+    while (deadline.timeIntervalSinceNow > 0) {
+        [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+    }
+
+    CALayer *layer = surface();
+    XCTAssertNotNil(layer.contents);
+    CGImageRef image = (__bridge CGImageRef)layer.contents;
+    XCTAssertEqual(CGImageGetHeight(image), static_cast<size_t>(std::ceil(80 * layer.contentsScale)));
 }
 
 @end

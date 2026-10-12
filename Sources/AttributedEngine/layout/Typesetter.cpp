@@ -237,7 +237,14 @@ void Typesetter::addAttachment(
         metrics.width,
     };
     auto delegate = CFRef<CTRunDelegateRef>::adopt(CTRunDelegateCreate(&callbacks, delegateMetrics));
-    CFDictionarySetValue(attributes, kCTRunDelegateAttributeName, delegate.get());
+
+    if (delegate) {
+        CFDictionarySetValue(attributes, kCTRunDelegateAttributeName, delegate.get());
+    } else {
+        // The delegate owns the payload only once it exists.
+        delete delegateMetrics;
+    }
+
     CFDictionarySetValue(attributes, kAttachmentAttribute, makeNumber(static_cast<int32_t>(attachment)).get());
 }
 

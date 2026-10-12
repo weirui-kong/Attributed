@@ -35,6 +35,8 @@ Newest last. All entries are from 2026-10-13.
 29. **Nested interactions** keep the innermost interaction per gesture key (tap count, or long press), so different gestures on the same text coexist.
 30. **`Group`** combines nodes without side effects, so several nodes can share one gesture.
 31. **Target layout:** the Swift DSL and layout (`AttributedCore`) are split from the views (`AttributedUI`), and the ObjC facade is split into a model target (`AttributedEngineObjC`) and a view target (`AttributedViewObjC`). The C++ engine is grouped by pipeline stage. The view layer uses only the model's public ObjC API.
+32. **Scroll observation lives on `didMoveToWindow`.** The view observes only inside a window and holds the scroll view strongly while observing; no unretained pointers.
+33. **Stress page uses a fixed set of font sizes.** UIKit and CoreText cache every distinct font instance for the life of the process. With continuous random sizes, a 40-second run left 76,735 `UICTFont` objects and a 1.58 GB footprint, although no engine or view objects survived. With quantized sizes, the footprint stays between 23 and 38 MB, and `leaks` reports 0 leaks. Callers that generate font sizes dynamically should quantize them for the same reason.
 
 ## Open questions
 

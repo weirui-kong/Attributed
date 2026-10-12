@@ -82,6 +82,12 @@ struct Builder {
     }
 
     public mutating func gradient(_ gradient: Gradient) -> GradientRef {
+        // The engine reads `locations` with the color count.
+        precondition(gradient.colors.count >= 2, "A gradient needs at least two colors.")
+        precondition(
+            gradient.locations.map { $0.count == gradient.colors.count } ?? true,
+            "Gradient locations must match the number of colors."
+        )
         let colors = gradient.colors.map(\.index)
         let descriptor = ATRGradientDescriptor(
             startX: gradient.startX,

@@ -31,7 +31,9 @@ CGImageRef copyCGImage(ATRPlatformImage *image) CF_RETURNS_RETAINED {
     // CGImages carry no orientation; bake it in.
     UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat preferredFormat];
     format.scale = image.scale;
-    UIImage *upright = [[[UIGraphicsImageRenderer alloc] initWithSize:image.size format:format]
+    // CGImage is owned by the UIImage; keep the owner alive until retained.
+    __attribute__((objc_precise_lifetime)) UIImage *upright =
+        [[[UIGraphicsImageRenderer alloc] initWithSize:image.size format:format]
         imageWithActions:^(UIGraphicsImageRendererContext *context) {
             [image drawInRect:CGRectMake(0, 0, image.size.width, image.size.height)];
         }];
@@ -418,11 +420,6 @@ CGSize ceilSize(CGSize size) {
     [self setNeedsLayoutPass];
 }
 
-- (void)viewDidMoveToSuperview {
-    [super viewDidMoveToSuperview];
-    [self updateScrollViewObservation];
-}
-
 - (void)viewDidMoveToWindow {
     [super viewDidMoveToWindow];
     [self updateScrollViewObservation];
@@ -439,11 +436,6 @@ CGSize ceilSize(CGSize size) {
     }
 }
 
-- (void)didMoveToSuperview {
-    [super didMoveToSuperview];
-    [self updateScrollViewObservation];
-}
-
 - (void)didMoveToWindow {
     [super didMoveToWindow];
     [self updateScrollViewObservation];
@@ -451,6 +443,8 @@ CGSize ceilSize(CGSize size) {
 }
 #endif
 
+// Observation starts and stops only when the view enters or leaves a window,
+// plus when viewport rendering is switched while already in one.
 - (void)updateScrollViewObservation {
     if (_viewportRenderingEnabled) {
         [_scrollObserver observeFirstScrollViewEnclosing:self];

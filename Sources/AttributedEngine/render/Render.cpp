@@ -83,7 +83,7 @@ private:
     const Document &document_;
     const ResolvedDocument &resolved_;
     const RenderResources &resources_;
-    const Rect &clip_;
+    const Rect clip_;
     CFRef<CGColorSpaceRef> colorSpace_;
     std::unordered_map<int32_t, CFRef<CGGradientRef>> gradients_;
 

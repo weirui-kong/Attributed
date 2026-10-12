@@ -11,11 +11,6 @@ static void *ATRContentOffsetContext = &ATRContentOffsetContext;
 
 @implementation ATRScrollObserver {
     void (^_changeHandler)(void);
-#if !TARGET_OS_OSX
-    // KVO must be removed from the scroll view even while it deallocates,
-    // when the weak reference already reads nil.
-    __unsafe_unretained UIScrollView *_scrollViewForRemoval;
-#endif
 }
 
 - (instancetype)initWithChangeHandler:(void (^)(void))changeHandler {
@@ -47,7 +42,7 @@ static void *ATRContentOffsetContext = &ATRContentOffsetContext;
 }
 
 - (void)observeFirstScrollViewEnclosing:(ATRPlatformView *)view {
-    ATRPlatformView *scrollView = [self firstScrollViewEnclosing:view];
+    ATRPlatformView *scrollView = view.window ? [self firstScrollViewEnclosing:view] : nil;
 
     if (scrollView == _scrollView) {
         return;
@@ -69,7 +64,6 @@ static void *ATRContentOffsetContext = &ATRContentOffsetContext;
                                                name:NSViewBoundsDidChangeNotification
                                              object:clipView];
 #else
-    _scrollViewForRemoval = (UIScrollView *)scrollView;
     [scrollView addObserver:self
                  forKeyPath:@"contentOffset"
                     options:NSKeyValueObservingOptionNew
@@ -83,8 +77,7 @@ static void *ATRContentOffsetContext = &ATRContentOffsetContext;
                                                   name:NSViewBoundsDidChangeNotification
                                                 object:nil];
 #else
-    [_scrollViewForRemoval removeObserver:self forKeyPath:@"contentOffset" context:ATRContentOffsetContext];
-    _scrollViewForRemoval = nil;
+    [_scrollView removeObserver:self forKeyPath:@"contentOffset" context:ATRContentOffsetContext];
 #endif
     _scrollView = nil;
 }

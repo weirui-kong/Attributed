@@ -12,7 +12,9 @@
 // Registers the semantic label color as color 0 and the root foreground.
 - (nonnull instancetype)init NS_DESIGNATED_INITIALIZER;
 
-// Equal fonts, colors, and gradients share one index.
+// Equal fonts, colors, and gradients share one index. `colors` and, when
+// given, `locations` must each hold `count` elements; `count` must be
+// positive.
 - (int32_t)registerFont:(nonnull ATRPlatformFont *)font;
 - (int32_t)registerColor:(nonnull ATRPlatformColor *)color;
 - (int32_t)registerGradientWithColors:(const int32_t *_Nonnull)colors

@@ -23,7 +23,7 @@
 // Off by default. When on, drawing is split into horizontal tiles of
 // `tileHeight` points, and only tiles near the visible part of the first
 // enclosing scroll view are kept; the view observes that scroll view's
-// position.
+// position while it is in a window.
 @property (nonatomic, getter=isViewportRenderingEnabled) BOOL viewportRenderingEnabled;
 // 256 by default.
 @property (nonatomic) CGFloat tileHeight;
@@ -60,6 +60,6 @@
 // Diagnostics.
 @property (nonatomic, readonly, nonnull) NSIndexSet *renderedTileIndexes;
 @property (nonatomic, readonly, nonnull) NSArray<ATRHitView *> *hitViews;
-@property (nonatomic, readonly, weak, nullable) ATRPlatformView *observedScrollView;
+@property (nonatomic, readonly, nullable) ATRPlatformView *observedScrollView;
 
 @end

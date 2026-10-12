@@ -18,6 +18,12 @@ final class HomeViewController: UITableViewController {
             symbol: "sparkles.rectangle.stack",
             makeViewController: { ShowcaseViewController() }
         ),
+        Demo(
+            title: "Stress",
+            subtitle: "Random lifecycle operations every frame",
+            symbol: "bolt.horizontal.circle",
+            makeViewController: { StressViewController() }
+        ),
     ]
 
     init() {

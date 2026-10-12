@@ -15,6 +15,11 @@ namespace {
 
 constexpr CGFloat kDefaultTileHeight = 256;
 
+// Each render request stamps its layer; only the latest request may install
+// its bitmap. Content generations alone can't tell apart two requests for
+// the same layer with the same content, such as after a height change.
+NSString *const kRequestKey = @"ATRRenderRequest";
+
 NSDictionary<NSString *, id<CAAction>> *disabledActions() {
     static NSDictionary<NSString *, id<CAAction>> *actions = @{
         @"contents": NSNull.null,
@@ -31,6 +36,7 @@ NSDictionary<NSString *, id<CAAction>> *disabledActions() {
 @implementation ATRTileController {
     __weak CALayer *_hostLayer;
     uint64_t _generation;
+    uint64_t _requestCounter;
     CGFloat _scale;
     CALayer *_surface;
     uint64_t _surfaceGeneration;
@@ -164,20 +170,24 @@ NSDictionary<NSString *, id<CAAction>> *disabledActions() {
     layer.contentsScale = scale;
 
     if (!_rendersAsynchronously) {
+        // Supersedes any asynchronous request still in flight for the layer.
+        [layer setValue:nil forKey:kRequestKey];
         layer.contents = (__bridge_transfer id)[snapshot newImageForRect:rect scale:scale];
         return;
     }
 
-    uint64_t generation = _generation;
-    __weak ATRTileController *weakSelf = self;
+    _requestCounter += 1;
+    NSNumber *request = @(_requestCounter);
+    [layer setValue:request forKey:kRequestKey];
+    __weak CALayer *weakLayer = layer;
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         CGImageRef image = [snapshot newImageForRect:rect scale:scale];
 
         dispatch_async(dispatch_get_main_queue(), ^{
-            ATRTileController *controller = weakSelf;
+            CALayer *target = weakLayer;
 
-            if (controller && controller->_generation == generation) {
-                layer.contents = (__bridge id)image;
+            if ([[target valueForKey:kRequestKey] isEqual:request]) {
+                target.contents = (__bridge id)image;
             }
 
             if (image) {
