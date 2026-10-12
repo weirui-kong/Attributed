@@ -2,34 +2,35 @@
 // SPDX-License-Identifier: MIT
 
 @_exported import AttributedCore
-@_exported import AttributedSwiftUI
-@_exported import AttributedTextKit
 
-public typealias ANode = AttributedCore.Attributed.AttributedNode
-public typealias ABlock = AttributedCore.Attributed.AttributedBlock
-public typealias AInline = AttributedCore.Attributed.AttributedInline
-public typealias AAttributedTextBuilder = AttributedCore.Attributed.AttributedTextBuilder
-public typealias AInlineBuilder = AttributedCore.Attributed.AttributedInlineBuilder
-public typealias AAttributedText = AttributedCore.Attributed.AttributedText
-public typealias AText = AttributedCore.Attributed.Text
-public typealias AParagraph = AttributedCore.Attributed.Paragraph
-public typealias ALink = AttributedCore.Attributed.Link
-public typealias ATextAttributes = AttributedCore.Attributed.TextAttributes
-public typealias AParagraphAttributes = AttributedCore.Attributed.ParagraphAttributes
-public typealias ARenderContext = AttributedCore.Attributed.RenderContext
-public typealias ANodeRenderResult = AttributedCore.Attributed.NodeRenderResult
-public typealias ARenderedAttributedText = AttributedCore.Attributed.RenderedAttributedText
-public typealias AInteractionID = AttributedCore.Attributed.InteractionID
-public typealias AInteraction = AttributedCore.Attributed.Interaction
-public typealias AImage = AttributedCore.Attributed.Image
-public typealias AImageSource = AttributedCore.Attributed.ImageSource
-public typealias AAttachmentID = AttributedCore.Attributed.AttachmentID
-public typealias AAttachmentSize = AttributedCore.Attributed.AttachmentSize
-public typealias AAttachmentAlignment = AttributedCore.Attributed.AttachmentAlignment
-public typealias AAttachmentState = AttributedCore.Attributed.AttachmentState
-public typealias ARenderedAttachment = AttributedCore.Attributed.RenderedAttachment
-public typealias ARenderedTextUpdate = AttributedCore.Attributed.RenderedTextUpdate
-public typealias ARemoteImageProvider = AttributedCore.Attributed.RemoteImageProvider
-public typealias ARemoteImageEnvironment = AttributedCore.Attributed.RemoteImageEnvironment
-public typealias ATextKitView = AttributedTextKit.TextKitView
-public typealias ATextView = AttributedSwiftUI.AttributedTextView
+public typealias ATRNode = AttributedCore.Attributed.AttributedNode
+public typealias ATRBlock = AttributedCore.Attributed.AttributedBlock
+public typealias ATRInline = AttributedCore.Attributed.AttributedInline
+public typealias ATRTextBuilder = AttributedCore.Attributed.AttributedTextBuilder
+public typealias ATRInlineBuilder = AttributedCore.Attributed.AttributedInlineBuilder
+public typealias ATRAttributedText = AttributedCore.Attributed.AttributedText
+public typealias ATRText = AttributedCore.Attributed.Text
+public typealias ATRParagraph = AttributedCore.Attributed.Paragraph
+public typealias ATRImage = AttributedCore.Attributed.Image
+public typealias ATRImageSource = AttributedCore.Attributed.ImageSource
+public typealias ATRAttachmentID = AttributedCore.Attributed.AttachmentID
+public typealias ATRAttachmentSize = AttributedCore.Attributed.AttachmentSize
+public typealias ATRAttachmentAlignment = AttributedCore.Attributed.AttachmentAlignment
+public typealias ATRInteractive<Content: ATRNode> = AttributedCore.Attributed.Interactive<Content>
+public typealias ATRGesture = AttributedCore.Attributed.Gesture
+public typealias ATRInteractionID = AttributedCore.Attributed.InteractionID
+public typealias ATRInteraction = AttributedCore.Attributed.Interaction
+public typealias ATRTextAlignment = AttributedCore.Attributed.TextAlignment
+public typealias ATRWritingDirection = AttributedCore.Attributed.WritingDirection
+public typealias ATRUnderlineStyle = AttributedCore.Attributed.UnderlineStyle
+public typealias ATRIR = AttributedCore.Attributed.IR
+public typealias ATRTextGradient = AttributedCore.Attributed.TextGradient
+public typealias ATRGradientPoint = AttributedCore.Attributed.GradientPoint
+public typealias ATRGradientScope = AttributedCore.Attributed.GradientScope
+public typealias ATRTextContainer = AttributedCore.Attributed.TextContainer
+public typealias ATRTextLayout = AttributedCore.Attributed.TextLayout
+public typealias ATRLineHeightMode = AttributedCore.Attributed.LineHeightMode
+public typealias ATRTextView = AttributedCore.Attributed.TextView
+public typealias ATRTextViewDelegate = AttributedCore.Attributed.TextViewDelegate
+public typealias ATRInteractionEvent = AttributedCore.Attributed.InteractionEvent
+public typealias ATRGroup<Element> = AttributedCore.Attributed.Group<Element>

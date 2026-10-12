@@ -1,19 +1,13 @@
 // Copyright 2026 Kong Weirui
 // SPDX-License-Identifier: MIT
 
-import Foundation
-
-#if canImport(UIKit)
-import UIKit
-#elseif canImport(AppKit)
-import AppKit
-#endif
+import CoreGraphics
 
 public extension Attributed {
-struct Paragraph: AttributedBlock {
+struct Paragraph: AttributedBlock, InlineStyled {
     let children: [any AttributedInline]
-    var textAttributes = TextAttributes()
-    var paragraphAttributes = ParagraphAttributes()
+    var inlineStyle = InlineStyle()
+    var paragraphStyle = IR.ParagraphStyle()
 
     public init(
         @AttributedInlineBuilder content: () -> [any AttributedInline]
@@ -21,80 +15,56 @@ struct Paragraph: AttributedBlock {
         children = content()
     }
 
-    public func render(context: RenderContext) -> NodeRenderResult {
-        var childContext = context
-        childContext.textAttributes = context.textAttributes.merging(textAttributes)
-        childContext.paragraphAttributes = context.paragraphAttributes.merging(paragraphAttributes)
+    public func lower(into builder: inout IR.Builder) {
+        let textStyle = inlineStyle.lowered(into: &builder)
 
-        let result = NSMutableAttributedString()
-
-        for child in children {
-            result.append(child.render(context: childContext).attributedString)
+        builder.paragraph(paragraphStyle, textStyle: textStyle) { builder in
+            for child in children {
+                child.lower(into: &builder)
+            }
         }
-
-        result.append(
-            NSAttributedString(
-                string: "\n",
-                attributes: childContext.textAttributes.nsAttributes
-            )
-        )
-        result.addAttribute(
-            .paragraphStyle,
-            value: childContext.paragraphAttributes.makeNSParagraphStyle(),
-            range: NSRange(location: 0, length: result.length)
-        )
-
-        return NodeRenderResult(attributedString: result)
     }
 }
 }
 
 public extension Attributed.Paragraph {
     func font(_ value: PlatformFont) -> Self {
-        var copy = self
-        copy.textAttributes.font = value
-        return copy
+        withStyle { $0.font = value }
     }
 
     func foregroundColor(_ value: PlatformColor) -> Self {
-        var copy = self
-        copy.textAttributes.foregroundColor = value
-        return copy
+        withStyle { $0.foreground = .color(value) }
     }
 
     func backgroundColor(_ value: PlatformColor) -> Self {
-        var copy = self
-        copy.textAttributes.backgroundColor = value
-        return copy
+        withStyle { $0.backgroundColor = value }
     }
 
     func kern(_ value: CGFloat) -> Self {
-        var copy = self
-        copy.textAttributes.kern = value
-        return copy
+        withStyle { $0.kern = value }
     }
 
-    func alignment(_ value: NSTextAlignment) -> Self {
-        var copy = self
-        copy.paragraphAttributes.alignment = value
-        return copy
+    func alignment(_ value: Attributed.TextAlignment) -> Self {
+        withParagraphStyle { $0.alignment = value }
     }
 
-    func baseWritingDirection(_ value: NSWritingDirection) -> Self {
-        var copy = self
-        copy.paragraphAttributes.baseWritingDirection = value
-        return copy
+    func baseWritingDirection(_ value: Attributed.WritingDirection) -> Self {
+        withParagraphStyle { $0.writingDirection = value }
     }
 
     func lineSpacing(_ value: CGFloat) -> Self {
-        var copy = self
-        copy.paragraphAttributes.lineSpacing = value
-        return copy
+        withParagraphStyle { $0.lineSpacing = Double(value) }
     }
 
     func paragraphSpacing(_ value: CGFloat) -> Self {
+        withParagraphStyle { $0.paragraphSpacing = Double(value) }
+    }
+
+    private func withParagraphStyle(
+        _ update: (inout Attributed.IR.ParagraphStyle) -> Void
+    ) -> Self {
         var copy = self
-        copy.paragraphAttributes.paragraphSpacing = value
+        update(&copy.paragraphStyle)
         return copy
     }
 }

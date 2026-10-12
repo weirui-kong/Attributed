@@ -1,26 +1,25 @@
 # Documentation
 
-Attributed is a TextKit-first DSL for constructing and displaying `NSAttributedString` on iOS and macOS. The package currently requires Swift 5.9, iOS 16, and macOS 13; [`Package.swift`](../Package.swift) is the source of truth for deployment targets and products.
+Attributed is being rewritten from scratch: a pure-Swift DSL on top, and an ObjC/C++ engine below that lays out and draws text with CoreText, exposed through a custom display-only text view. [`Package.swift`](../Package.swift) is the source of truth for products and deployment targets.
 
-The public facade is the `Attributed` product. It re-exports the lower-level modules and provides `A`-prefixed aliases such as `AAttributedText`, `AText`, `AParagraph`, `AImage`, `ATextKitView`, and `ATextView`. See [`Sources/Attributed/Aliases.swift`](../Sources/Attributed/Aliases.swift) for the complete alias list.
+These documents double as the project's working memory. Update them in the same change as any decision or implementation they describe.
 
 ## Documentation map
 
-- [`guides/`](guides/README.md): installation, first use, and task-oriented examples.
-- [`api/`](api/README.md): public API semantics and boundaries.
-- [`specifications/`](specifications/README.md): architecture, loading behavior, and acceptance rules.
-- [Project README](../README.md): short package overview and installation snippet.
-
-## Package map
-
-| Product | Responsibility | Implementation |
-| --- | --- | --- |
-| `Attributed` | Primary facade and `A`-prefixed aliases | [`Sources/Attributed/`](../Sources/Attributed/) |
-| `AttributedCore` | DSL, rendering, interactions, attachments, and remote-provider contract | [`Sources/Core/`](../Sources/Core/) |
-| `AttributedTextKit` | TextKit 2 hosts for UIKit and AppKit | [`Sources/TextKit/`](../Sources/TextKit/) |
-| `AttributedSwiftUI` | SwiftUI bridge around the TextKit host | [`Sources/SwiftUI/`](../Sources/SwiftUI/) |
-| `AttributedUtility` | Optional URLSession image downloader | [`Sources/Utility/`](../Sources/Utility/) |
+| Document | Contents |
+| --- | --- |
+| [Goals and constraints](design/goals-and-constraints.md) | Scope, hard constraints, naming, code and Git conventions |
+| [Architecture](design/architecture.md) | Layers, SwiftPM targets, language boundary, verification commands |
+| [IR](design/ir.md) | Op stream, styles, resources, invariants, dump format |
+| [DSL](design/dsl.md) | Nodes and modifiers: text, interactions, images, gradients |
+| [Layout and rendering](design/layout-and-rendering.md) | Width-based immutable layout, off-main computation, drawing, viewport tiling, gradients across tiles |
+| [Roadmap](design/roadmap.md) | Phases and progress checklist |
+| [Decisions](design/decisions.md) | Decision log and open questions |
 
 ## Accuracy policy
 
-The source and tests define current behavior. Documents should distinguish implemented behavior from future work and link to the relevant relative path when a detail is not obvious. Private design notes under `tmp/` are intentionally excluded from the public documentation and from Git.
+The source and tests define current behavior. Each document marks what is implemented and what is planned. Private notes under `tmp/` are excluded from Git.
+
+## Legacy documents
+
+`api/`, `guides/`, and `specifications/` describe the deleted v0.1 implementation (`NSAttributedString` + TextKit 2) and are obsolete. They are kept until the user decides to remove them; the old code is recoverable from commit `def47d1`.

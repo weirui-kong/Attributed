@@ -3,71 +3,89 @@
 
 import Foundation
 
-#if canImport(UIKit)
-import UIKit
-#elseif canImport(AppKit)
-import AppKit
-#endif
-
 public extension Attributed {
-struct Text: AttributedInline {
+struct Text: AttributedInline, InlineStyled {
     let content: String
-    var attributes = TextAttributes()
+    var inlineStyle = InlineStyle()
+    var url: URL?
 
     public init(_ content: String) {
         self.content = content
     }
 
-    public func render(context: RenderContext) -> NodeRenderResult {
-        let attributes = context.textAttributes.merging(attributes)
-        let attributedString = NSAttributedString(
-            string: content,
-            attributes: attributes.nsAttributes
+    public func lower(into builder: inout IR.Builder) {
+        let style = inlineStyle.lowered(into: &builder)
+
+        guard style != IR.TextStyle() || url != nil else {
+            builder.text(content)
+            return
+        }
+
+        let span = IR.Span(
+            textStyle: style,
+            interaction: url.map { builder.register(.value($0), gesture: .tap()) }
         )
 
-        return NodeRenderResult(attributedString: attributedString)
+        builder.span(span) { builder in
+            builder.text(content)
+        }
     }
 }
 }
 
 public extension Attributed.Text {
     func font(_ value: PlatformFont) -> Self {
-        var copy = self
-        copy.attributes.font = value
-        return copy
+        withStyle { $0.font = value }
     }
 
+    // The foreground is either a color or a gradient; the last one set wins.
     func foregroundColor(_ value: PlatformColor) -> Self {
-        var copy = self
-        copy.attributes.foregroundColor = value
-        return copy
+        withStyle { $0.foreground = .color(value) }
+    }
+
+    func gradient(_ value: Attributed.TextGradient) -> Self {
+        withStyle { $0.foreground = .gradient(value) }
     }
 
     func backgroundColor(_ value: PlatformColor) -> Self {
-        var copy = self
-        copy.attributes.backgroundColor = value
-        return copy
+        withStyle { $0.backgroundColor = value }
     }
 
     func kern(_ value: CGFloat) -> Self {
-        var copy = self
-        copy.attributes.kern = value
-        return copy
+        withStyle { $0.kern = value }
     }
 
     func baselineOffset(_ value: CGFloat) -> Self {
-        var copy = self
-        copy.attributes.baselineOffset = value
-        return copy
+        withStyle { $0.baselineOffset = value }
+    }
+
+    // Without a color or gradient, the underline uses the text's foreground,
+    // including a foreground gradient.
+    func underline(
+        _ style: Attributed.UnderlineStyle = .single,
+        color: PlatformColor? = nil
+    ) -> Self {
+        withStyle {
+            $0.underline = style
+            $0.underlineFill = color.map { .color($0) }
+        }
     }
 
     func underline(
-        _ style: NSUnderlineStyle = .single,
-        color: PlatformColor? = nil
+        _ style: Attributed.UnderlineStyle = .single,
+        gradient: Attributed.TextGradient
     ) -> Self {
+        withStyle {
+            $0.underline = style
+            $0.underlineFill = .gradient(gradient)
+        }
+    }
+
+    // A single tap carrying `url` as its value, like `onTap(value: url)`.
+    // Link appearance is not implied; style the text explicitly.
+    func link(_ url: URL) -> Self {
         var copy = self
-        copy.attributes.underlineStyle = style
-        copy.attributes.underlineColor = color
+        copy.url = url
         return copy
     }
 }

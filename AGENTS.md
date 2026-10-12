@@ -12,3 +12,7 @@
   ```
 
 - `Package.swift` is the only exception: its required `// swift-tools-version:` declaration stays on the first line, directly before the license header.
+
+# Objective-C
+
+- Never use `NS_ASSUME_NONNULL_BEGIN` / `NS_ASSUME_NONNULL_END`. Annotate the nullability of every pointer explicitly (`nonnull` / `nullable`, or `_Nonnull` / `_Nullable` for C pointers), including `instancetype` returns.

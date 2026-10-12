@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 // Copyright 2026 Kong Weirui
 // SPDX-License-Identifier: MIT
 
@@ -14,73 +14,49 @@ let package = Package(
         .library(
             name: "Attributed",
             targets: ["Attributed"]
-        ),
-        .library(
-            name: "AttributedCore",
-            targets: ["AttributedCore"]
-        ),
-        .library(
-            name: "AttributedTextKit",
-            targets: ["AttributedTextKit"]
-        ),
-        .library(
-            name: "AttributedSwiftUI",
-            targets: ["AttributedSwiftUI"]
-        ),
-        .library(
-            name: "AttributedUtility",
-            targets: ["AttributedUtility"]
         )
     ],
     targets: [
         .target(
             name: "Attributed",
-            dependencies: [
-                "AttributedCore",
-                "AttributedTextKit",
-                "AttributedSwiftUI"
-            ]
+            dependencies: ["AttributedCore"],
+            path: "Sources/Attributed"
         ),
         .target(
             name: "AttributedCore",
+            dependencies: ["AttributedEngineObjC"],
             path: "Sources/Core"
         ),
         .target(
-            name: "AttributedTextKit",
-            dependencies: ["AttributedCore"],
-            path: "Sources/TextKit"
+            name: "AttributedEngineObjC",
+            dependencies: ["AttributedEngine"],
+            path: "Sources/EngineObjC",
+            linkerSettings: [
+                .linkedFramework("Foundation"),
+                .linkedFramework("QuartzCore"),
+                .linkedFramework("UIKit", .when(platforms: [.iOS])),
+                .linkedFramework("AppKit", .when(platforms: [.macOS]))
+            ]
         ),
         .target(
-            name: "AttributedSwiftUI",
-            dependencies: [
-                "AttributedCore",
-                "AttributedTextKit"
-            ],
-            path: "Sources/SwiftUI"
-        ),
-        .target(
-            name: "AttributedUtility",
-            dependencies: ["AttributedCore"],
-            path: "Sources/Utility"
-        ),
-        .testTarget(
-            name: "AttributedTests",
-            dependencies: ["Attributed"]
+            name: "AttributedEngine",
+            path: "Sources/Engine",
+            linkerSettings: [
+                .linkedFramework("CoreFoundation"),
+                .linkedFramework("CoreGraphics"),
+                .linkedFramework("CoreText")
+            ]
         ),
         .testTarget(
             name: "AttributedCoreTests",
-            dependencies: ["AttributedCore"],
+            dependencies: ["AttributedCore", "AttributedEngineObjC"],
             path: "Tests/CoreTests"
         ),
         .testTarget(
-            name: "AttributedTextKitTests",
-            dependencies: ["AttributedTextKit"],
-            path: "Tests/TextKitTests"
-        ),
-        .testTarget(
-            name: "AttributedUtilityTests",
-            dependencies: ["AttributedUtility"],
-            path: "Tests/UtilityTests"
+            name: "AttributedEngineTests",
+            dependencies: ["AttributedEngineObjC", "AttributedEngine"],
+            path: "Tests/EngineTests"
         )
-    ]
+    ],
+    cxxLanguageStandard: .cxx20
 )

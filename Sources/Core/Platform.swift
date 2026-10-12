@@ -14,5 +14,5 @@ public typealias PlatformColor = NSColor
 public typealias PlatformFont = NSFont
 public typealias PlatformImage = NSImage
 #else
-#error("Core requires UIKit or AppKit.")
+#error("AttributedCore requires UIKit or AppKit.")
 #endif
