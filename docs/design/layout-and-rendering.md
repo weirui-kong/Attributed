@@ -28,6 +28,16 @@ ATRDocument (immutable) + width ──compute──► ATRTextLayout (immutable)
 
 ### Pipeline
 
+The C++ layout is split by stage under `Sources/AttributedEngine/layout/`, sharing a read-only `LayoutContext`:
+
+| File | Stage |
+| --- | --- |
+| `Typesetter` | Builds each paragraph's CoreText input on first use: attributes, attachment measurement, run delegates, the unsized-AsyncImage placeholder |
+| `LineBreaker` | Breaks and places lines: spacing, line height modes, alignment, container limits, truncation |
+| `LayoutAnnotator` | Runs in visual order, attachment frames, gradient groups, underline segments, hit regions, size |
+| `Layout.cpp` | `computeLayout` wires the three stages together |
+
+
 1. **Resolve** (once per document, pure C++): the op stream becomes paragraphs of UTF-16 text and maximal runs with fully resolved styles. Equal resolved styles share one index. Attachments become U+FFFC runs of their own.
    - Natural writing direction resolves to the paragraph's first strong character, then left-to-right. This approximates the Unicode first-strong rule with script block ranges, not a full property database.
    - An underline without its own fill takes the foreground fill here.
@@ -97,6 +107,10 @@ Status: implemented in [`Sources/AttributedEngine/render/Render.cpp`](../../Sour
 
 Status: implemented. The public view is `Attributed.TextView` (alias `ATRTextView`, [`Sources/AttributedUI/TextView.swift`](../../Sources/AttributedUI/TextView.swift)). It wraps the internal `ATRTextDisplayView` ([`Sources/AttributedViewObjC/ATRTextDisplayView.mm`](../../Sources/AttributedViewObjC/ATRTextDisplayView.mm)), which does the work. Tests: [`Tests/AttributedViewObjCTests/DisplayViewTests.mm`](../../Tests/AttributedViewObjCTests/DisplayViewTests.mm), [`Tests/AttributedUITests/TextViewTests.swift`](../../Tests/AttributedUITests/TextViewTests.swift).
 
+- **Structure:** `ATRTextDisplayView` only assembles internal helpers (private headers in `Sources/AttributedViewObjC/`):
+  - `ATRTileController`: the surface and tile layers, content generations, synchronous or background drawing.
+  - `ATRScrollObserver`: the first enclosing scroll view and the visible region.
+  - `ATRHitViewManager`: hit views per interaction set, built with the injected registry and policy.
 - **Layout:**
   - The display view lays out its document for its own width during the layout pass.
   - `measuredSize(forWidth:)` / `sizeThatFits` use a one-entry measuring cache.
