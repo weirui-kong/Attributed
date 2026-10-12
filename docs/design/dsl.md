@@ -1,6 +1,6 @@
 # DSL
 
-Status: lowering to the IR is implemented in [`Sources/Core/`](../../Sources/Core/). Rendering, loading, and tap dispatch wait for the engine and the view.
+Status: lowering to the IR is implemented in [`Sources/AttributedCore/`](../../Sources/AttributedCore/). Rendering, loading, and tap dispatch wait for the engine and the view.
 
 ## Document and extension point
 

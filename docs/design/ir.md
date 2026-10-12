@@ -1,6 +1,6 @@
 # IR
 
-Status: implemented. The document lives in engine memory: storage, validation, and dump are C++ ([`Sources/Engine/`](../../Sources/Engine/)), resource deduplication is ObjC++ ([`Sources/EngineObjC/`](../../Sources/EngineObjC/)), and Swift ([`Sources/Core/IR/`](../../Sources/Core/IR/)) only forwards builder calls. Covered by [`Tests/CoreTests/`](../../Tests/CoreTests/) and [`Tests/EngineTests/`](../../Tests/EngineTests/).
+Status: implemented. The document lives in engine memory: storage, validation, and dump are C++ ([`Sources/AttributedEngine/`](../../Sources/AttributedEngine/)), resource deduplication is ObjC++ ([`Sources/AttributedEngineObjC/`](../../Sources/AttributedEngineObjC/)), and Swift ([`Sources/AttributedCore/IR/`](../../Sources/AttributedCore/IR/)) only forwards builder calls. Covered by [`Tests/AttributedCoreTests/`](../../Tests/AttributedCoreTests/) and [`Tests/AttributedEngineTests/`](../../Tests/AttributedEngineTests/).
 
 ## Flow
 

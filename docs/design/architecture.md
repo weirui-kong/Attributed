@@ -26,18 +26,36 @@ Planned engine rules:
 
 ## SwiftPM targets
 
-Tools version 6.0 with the Swift 6 language mode.
+Tools version 6.0 with the Swift 6 language mode. Each target lives in `Sources/<target>` and its tests in `Tests/<target>Tests`, so `Package.swift` needs no custom paths.
 
-| Target | Path | Status | Contents |
+```
+Attributed (facade)
+├─ AttributedUI ──────── AttributedViewObjC ─┐
+└─ AttributedCore ────── AttributedEngineObjC ┴─ AttributedEngine (C++)
+```
+
+| Target | Language | Product | Contents |
 | --- | --- | --- | --- |
-| `Attributed` (only product) | `Sources/Attributed` | implemented | `@_exported import AttributedCore` and `ATR*` aliases |
-| `AttributedCore` | `Sources/Core` | implemented | `Attributed` namespace, DSL, thin `IR.Builder`, `TextView` wrapper |
-| `AttributedEngineObjC` | `Sources/EngineObjC` | implemented | ObjC++ facade with `ATR` prefix: document builder, layout, render snapshot, display view, hit views, gestures; pure-ObjC public headers in `include/` |
-| `AttributedEngine` | `Sources/Engine` | implemented (document, resolution, layout) | C++20 engine on CoreText; headers in `include/atr/`; links CoreFoundation, CoreGraphics, CoreText |
-| `AttributedCoreTests` | `Tests/CoreTests` | implemented | Swift lowering snapshot tests |
-| `AttributedEngineTests` | `Tests/EngineTests` | implemented | ObjC++ tests for validation, dump, dedup, resolution, layout |
+| `Attributed` | Swift | yes | Re-exports `AttributedCore` and `AttributedUI`; `ATR*` aliases |
+| `AttributedCore` | Swift | yes | `DSL/` (nodes, modifiers, gestures, gradients, styles), `IR/` (thin builder over the engine), `Layout/` (`TextContainer`, `TextLayout`). No views, so it can measure off the main thread. |
+| `AttributedUI` | Swift | yes | `TextView`, `TextViewDelegate`, `InteractionEvent`; closures, values, and AsyncImage loading |
+| `AttributedEngineObjC` | ObjC++ | no | Model facade: `ATRDocumentBuilder`, `ATRDocument`, `ATRTextLayout`, `ATRRenderSnapshot`, C value types |
+| `AttributedViewObjC` | ObjC++ | no | View layer: `ATRTextDisplayView`, `ATRHitView`, gesture bindings, factories, registry, policy. Uses only the model facade's public ObjC API. |
+| `AttributedEngine` | C++20 | no | `document/`, `resolve/`, `layout/`, `render/` with matching headers under `include/atr/`; links CoreFoundation, CoreGraphics, CoreText |
 
-A SwiftPM target can't mix Swift with C-family code, so Swift, the ObjC++ facade, and the C++ engine are separate targets. Swift imports the facade with `internal import` so no ObjC type leaks into the public API. The facade's public headers are pure Objective-C (no C++), so Swift needs no C++ interop. ObjC++ does not autolink platform frameworks, so the facade declares Foundation, QuartzCore, UIKit (iOS), and AppKit (macOS) in `linkerSettings`. The Swift test target depends on the facade directly to inspect hit views.
+| Test target | Covers |
+| --- | --- |
+| `AttributedCoreTests` | Lowering snapshots, Swift layout API |
+| `AttributedUITests` | `TextView` delegate events and AsyncImage loading |
+| `AttributedEngineTests` | Builder validation, dump, resolution, layout, rendering pixels |
+| `AttributedViewObjCTests` | Hit views, gestures, tiling, async rendering |
+
+- A SwiftPM target can't mix Swift with C-family code, and the view and model layers are split on purpose, so there are three non-Swift targets.
+- Cross-target internals:
+  - Swift targets share internals through `package` access. For example, `AttributedUI` reads the lowered document's engine object and handler tables.
+  - Swift imports the ObjC facades with `internal import` or `package import`, so no ObjC type reaches clients.
+- The facades' public headers are pure Objective-C (no C++), so Swift needs no C++ interop.
+- ObjC++ does not autolink platform frameworks, so each ObjC target declares its frameworks in `linkerSettings`.
 
 ## Language boundary
 

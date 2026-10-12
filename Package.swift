@@ -4,6 +4,11 @@
 
 import PackageDescription
 
+// Swift is a thin top layer; heavy work lives in the ObjC++ and C++ targets.
+//
+//   Attributed (facade)
+//   ├─ AttributedUI ──────── AttributedViewObjC ─┐
+//   └─ AttributedCore ────── AttributedEngineObjC ┴─ AttributedEngine (C++)
 let package = Package(
     name: "Attributed",
     platforms: [
@@ -11,26 +16,36 @@ let package = Package(
         .macOS(.v13)
     ],
     products: [
-        .library(
-            name: "Attributed",
-            targets: ["Attributed"]
-        )
+        .library(name: "Attributed", targets: ["Attributed"]),
+        // DSL and layout without views, for example to measure off the main thread.
+        .library(name: "AttributedCore", targets: ["AttributedCore"]),
+        .library(name: "AttributedUI", targets: ["AttributedUI"])
     ],
     targets: [
         .target(
             name: "Attributed",
-            dependencies: ["AttributedCore"],
-            path: "Sources/Attributed"
+            dependencies: ["AttributedCore", "AttributedUI"]
         ),
         .target(
             name: "AttributedCore",
-            dependencies: ["AttributedEngineObjC"],
-            path: "Sources/Core"
+            dependencies: ["AttributedEngineObjC"]
+        ),
+        .target(
+            name: "AttributedUI",
+            dependencies: ["AttributedCore", "AttributedEngineObjC", "AttributedViewObjC"]
         ),
         .target(
             name: "AttributedEngineObjC",
             dependencies: ["AttributedEngine"],
-            path: "Sources/EngineObjC",
+            linkerSettings: [
+                .linkedFramework("Foundation"),
+                .linkedFramework("UIKit", .when(platforms: [.iOS])),
+                .linkedFramework("AppKit", .when(platforms: [.macOS]))
+            ]
+        ),
+        .target(
+            name: "AttributedViewObjC",
+            dependencies: ["AttributedEngineObjC"],
             linkerSettings: [
                 .linkedFramework("Foundation"),
                 .linkedFramework("QuartzCore"),
@@ -40,7 +55,6 @@ let package = Package(
         ),
         .target(
             name: "AttributedEngine",
-            path: "Sources/Engine",
             linkerSettings: [
                 .linkedFramework("CoreFoundation"),
                 .linkedFramework("CoreGraphics"),
@@ -49,13 +63,19 @@ let package = Package(
         ),
         .testTarget(
             name: "AttributedCoreTests",
-            dependencies: ["AttributedCore", "AttributedEngineObjC"],
-            path: "Tests/CoreTests"
+            dependencies: ["AttributedCore", "AttributedEngineObjC"]
+        ),
+        .testTarget(
+            name: "AttributedUITests",
+            dependencies: ["AttributedUI", "AttributedCore", "AttributedViewObjC", "AttributedEngineObjC"]
         ),
         .testTarget(
             name: "AttributedEngineTests",
-            dependencies: ["AttributedEngineObjC", "AttributedEngine"],
-            path: "Tests/EngineTests"
+            dependencies: ["AttributedEngineObjC", "AttributedEngine"]
+        ),
+        .testTarget(
+            name: "AttributedViewObjCTests",
+            dependencies: ["AttributedViewObjC", "AttributedEngineObjC"]
         )
     ],
     cxxLanguageStandard: .cxx20

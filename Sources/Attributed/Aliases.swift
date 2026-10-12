@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 @_exported import AttributedCore
+@_exported import AttributedUI
 
 public typealias ATRNode = AttributedCore.Attributed.AttributedNode
 public typealias ATRBlock = AttributedCore.Attributed.AttributedBlock
@@ -30,7 +31,7 @@ public typealias ATRGradientScope = AttributedCore.Attributed.GradientScope
 public typealias ATRTextContainer = AttributedCore.Attributed.TextContainer
 public typealias ATRTextLayout = AttributedCore.Attributed.TextLayout
 public typealias ATRLineHeightMode = AttributedCore.Attributed.LineHeightMode
-public typealias ATRTextView = AttributedCore.Attributed.TextView
-public typealias ATRTextViewDelegate = AttributedCore.Attributed.TextViewDelegate
-public typealias ATRInteractionEvent = AttributedCore.Attributed.InteractionEvent
+public typealias ATRTextView = Attributed.TextView
+public typealias ATRTextViewDelegate = Attributed.TextViewDelegate
+public typealias ATRInteractionEvent = Attributed.InteractionEvent
 public typealias ATRGroup<Element> = AttributedCore.Attributed.Group<Element>

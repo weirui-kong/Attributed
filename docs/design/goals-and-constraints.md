@@ -29,5 +29,5 @@ From [`AGENTS.md`](../../AGENTS.md):
 
 ## Git conventions
 
-- Commit messages are a single `type: summary` line matching the existing history, with no body and no `Co-Authored-By` or other AI attribution.
+- Commit messages start with a `type: summary` line matching the existing history, optionally followed by a blank line and a short body. Never add `Co-Authored-By` or any other AI attribution.
 - Commit or push only when asked.

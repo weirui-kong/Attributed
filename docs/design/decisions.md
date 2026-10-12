@@ -34,6 +34,7 @@ Newest last. All entries are from 2026-10-13.
 28. **Interactions carry values.** `onTap` and `onLongPress` take a closure or a `value:` of any type. The delegate receives an `InteractionEvent` with the value, the UTF-16 range and text, the location, and the rects. `Interaction` is only `.action` or `.value`. A link is `.value(url)`. URL values open with the system unless the delegate declines.
 29. **Nested interactions** keep the innermost interaction per gesture key (tap count, or long press), so different gestures on the same text coexist.
 30. **`Group`** combines nodes without side effects, so several nodes can share one gesture.
+31. **Target layout:** the Swift DSL and layout (`AttributedCore`) are split from the views (`AttributedUI`), and the ObjC facade is split into a model target (`AttributedEngineObjC`) and a view target (`AttributedViewObjC`). The C++ engine is grouped by pipeline stage. The view layer uses only the model's public ObjC API.
 
 ## Open questions
 

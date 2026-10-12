@@ -1,6 +1,6 @@
 # Layout and Rendering
 
-Status: layout is implemented ([`Sources/Engine/Layout.cpp`](../../Sources/Engine/Layout.cpp), [`Resolve.cpp`](../../Sources/Engine/Resolve.cpp)) and covered by [`Tests/EngineTests/LayoutTests.mm`](../../Tests/EngineTests/LayoutTests.mm) and [`Tests/CoreTests/TextLayoutTests.swift`](../../Tests/CoreTests/TextLayoutTests.swift). Rendering and tiling are design only (P3).
+Status: layout is implemented ([`Sources/AttributedEngine/layout/Layout.cpp`](../../Sources/AttributedEngine/layout/Layout.cpp), [`Resolve.cpp`](../../Sources/AttributedEngine/resolve/Resolve.cpp)) and covered by [`Tests/AttributedEngineTests/LayoutTests.mm`](../../Tests/AttributedEngineTests/LayoutTests.mm) and [`Tests/AttributedCoreTests/TextLayoutTests.swift`](../../Tests/AttributedCoreTests/TextLayoutTests.swift). Rendering and tiling are design only (P3).
 
 The ideas come from YYText: an immutable layout computed for a container, then drawn separately, possibly off the main thread. They are adapted, not copied.
 
@@ -74,7 +74,7 @@ Underline segments are produced during layout. Adjacent runs on one line with an
 
 ## Rendering
 
-Status: implemented in [`Sources/Engine/Render.cpp`](../../Sources/Engine/Render.cpp) and [`Sources/EngineObjC/ATRRenderSnapshot.mm`](../../Sources/EngineObjC/ATRRenderSnapshot.mm). Pixel-level tests: [`Tests/EngineTests/RenderTests.mm`](../../Tests/EngineTests/RenderTests.mm).
+Status: implemented in [`Sources/AttributedEngine/render/Render.cpp`](../../Sources/AttributedEngine/render/Render.cpp) and [`Sources/AttributedEngineObjC/ATRRenderSnapshot.mm`](../../Sources/AttributedEngineObjC/ATRRenderSnapshot.mm). Pixel-level tests: [`Tests/AttributedEngineTests/RenderTests.mm`](../../Tests/AttributedEngineTests/RenderTests.mm).
 
 - `ATRRenderSnapshot` bundles a layout, the colors resolved for one appearance on the main thread, and the attachment images. Drawing it is then safe on any thread.
 - The renderer draws in layout coordinates (top-left origin, y down) with a flipped text matrix, in passes:
@@ -95,7 +95,7 @@ Status: implemented in [`Sources/Engine/Render.cpp`](../../Sources/Engine/Render
 
 ## Text view
 
-Status: implemented. The public view is `Attributed.TextView` (alias `ATRTextView`, [`Sources/Core/TextView.swift`](../../Sources/Core/TextView.swift)). It wraps the internal `ATRTextDisplayView` ([`Sources/EngineObjC/ATRTextDisplayView.mm`](../../Sources/EngineObjC/ATRTextDisplayView.mm)), which does the work. Tests: [`Tests/EngineTests/DisplayViewTests.mm`](../../Tests/EngineTests/DisplayViewTests.mm), [`Tests/CoreTests/TextViewTests.swift`](../../Tests/CoreTests/TextViewTests.swift).
+Status: implemented. The public view is `Attributed.TextView` (alias `ATRTextView`, [`Sources/AttributedUI/TextView.swift`](../../Sources/AttributedUI/TextView.swift)). It wraps the internal `ATRTextDisplayView` ([`Sources/AttributedViewObjC/ATRTextDisplayView.mm`](../../Sources/AttributedViewObjC/ATRTextDisplayView.mm)), which does the work. Tests: [`Tests/AttributedViewObjCTests/DisplayViewTests.mm`](../../Tests/AttributedViewObjCTests/DisplayViewTests.mm), [`Tests/AttributedUITests/TextViewTests.swift`](../../Tests/AttributedUITests/TextViewTests.swift).
 
 - **Layout:**
   - The display view lays out its document for its own width during the layout pass.
@@ -123,7 +123,7 @@ Status: implemented. The public view is `Attributed.TextView` (alias `ATRTextVie
 
 ### Gestures
 
-Gestures are split into pieces so that no layer depends on a concrete gesture, as shown in [`ATRGestures.h`](../../Sources/EngineObjC/include/ATRGestures.h):
+Gestures are split into pieces so that no layer depends on a concrete gesture, as shown in [`ATRGestures.h`](../../Sources/AttributedViewObjC/include/ATRGestures.h):
 
 - **Data:**
   - `ATRGesture` / `atr::Gesture` is plain data in the document.
