@@ -3,7 +3,7 @@
 ## P0: DSL and IR (pure Swift)
 
 - [x] Delete the v0.1 sources, tests, and demo (recoverable from `def47d1`).
-- [x] New package: one `Attributed` product over `AttributedCore`; tools 6.0 with the Swift 6 language mode.
+- [x] New package with tools 6.0 and the Swift 6 language mode; now three products (`Attributed`, `AttributedCore`, `AttributedUI`).
 - [x] IR: op stream, styles, deduplicated resource tables, builder, dump.
 - [x] Nodes `Text`, `Paragraph`, and `Image` lower through `lower(into:)`.
 - [x] Interactions: the `.link(url)` text modifier and generic `.onTap`.
@@ -12,7 +12,7 @@
 - [x] `ATR`-prefixed facade aliases.
 - [x] Foreground as one fill (color or gradient); engine-drawn underline decorations with color or gradient fills and corners.
 - [x] Snapshot tests passing on macOS and the iOS Simulator.
-- [ ] Commit P0–P2 work (waiting for the user).
+- [x] Commit and push the P0–P3 work.
 
 ## P1: Engine skeleton
 
@@ -36,6 +36,8 @@ Design: [layout-and-rendering.md](layout-and-rendering.md).
 - [x] Container limits: maximum height, maximum lines, end truncation with a token.
 - [x] Line height modes: typographic (declared fonts) and glyph bounds; ink extents recorded per line.
 - [x] Swift `TextContainer` / `TextLayout` with `Sendable` document and layout.
+- [x] Shared fallback fonts per document (CoreText would create them per paragraph).
+- [x] Incremental relayout when only attachment content sizes change.
 - [ ] Exclusion paths.
 - [ ] Lazy layout for very long documents (incompatible with `.document` gradient scope).
 
@@ -48,6 +50,7 @@ Design: [layout-and-rendering.md](layout-and-rendering.md).
 - [x] Color re-resolution on appearance change.
 - [x] AsyncImage pipeline: `defer` closures after the initial render; redraw, or relayout for adaptive sizes.
 - [x] Gestures through hit views: tap (count) and long press (duration), using a factory registry, a policy, bindings, and delegates.
+- [x] Hit views follow the viewport and are reused by gesture signature.
 - [x] Delegate events with attached values, text ranges, text, location, and rects.
 - [x] Basic accessibility label.
 - [x] Layout ahead of time: prepared text from any thread, applied synchronously by the view.
@@ -55,6 +58,7 @@ Design: [layout-and-rendering.md](layout-and-rendering.md).
 - [ ] Richer accessibility (per-link elements).
 - [ ] SwiftUI bridge.
 - [x] New UIKit demo app (`Demo/AttributedDemo`): home list and a feature showcase; LookinServer for view debugging.
+- [x] Demo Stress page: random lifecycle chains and background layout workers, with a hang watchdog.
 - [x] Demo Performance page and FPS monitor. The page runs 1K–1M characters, English or mixed scripts, plain, random, or complex styles, sync or async, and times each stage. Launch argument `-benchmark size,script,style,mode`.
 - [ ] Exclusion paths and lazy layout (from P2).
 

@@ -14,15 +14,16 @@ ATRDocument ──► C++ engine                               implemented
                                           ├ CGContext rendering (Render.cpp) ──► ATRRenderSnapshot
                                           └ hit regions ──► ATRHitView + gesture registry/policy
 Attributed.TextView (Swift, public) ⊃ ATRTextDisplayView (ObjC, internal):
-    layout per width, layer bitmaps, viewport tiles, hit views; events go
-    back to Swift as interaction IDs and become InteractionEvents
+    layout per width (or a prepared layout, applied synchronously), layer
+    bitmaps, viewport tiles, viewport hit views; events go back to Swift as
+    interaction IDs and become InteractionEvents
 ```
 
-Planned engine rules:
+Engine rules:
 
-- Text is indexed in UTF-16, matching CoreText.
-- Fonts and colors reach the engine as resource indices. An appearance change re-resolves the color table and redraws without relayout. A Dynamic Type change re-resolves the font table and relays out.
-- Layout results are immutable snapshots computed for a width, safe to compute off the main thread. See [layout-and-rendering.md](layout-and-rendering.md).
+- Text is indexed in UTF-16, matching CoreText. Implemented.
+- Fonts and colors reach the engine as resource indices. An appearance change re-resolves the color table and redraws without relayout. Implemented. A Dynamic Type change re-resolving the font table and relaying out is planned.
+- Layout results are immutable snapshots computed for a width, safe to compute off the main thread; views apply them synchronously. Implemented. See [layout-and-rendering.md](layout-and-rendering.md).
 
 ## SwiftPM targets
 
@@ -37,18 +38,18 @@ Attributed (facade)
 | Target | Language | Product | Contents |
 | --- | --- | --- | --- |
 | `Attributed` | Swift | yes | Re-exports `AttributedCore` and `AttributedUI`; `ATR*` aliases |
-| `AttributedCore` | Swift | yes | `DSL/` (nodes, modifiers, gestures, gradients, styles), `IR/` (thin builder over the engine), `Layout/` (`TextContainer`, `TextLayout`). No views, so it can measure off the main thread. |
+| `AttributedCore` | Swift | yes | `DSL/` (nodes, modifiers, gestures, gradients, styles), `IR/` (thin builder over the engine), `Layout/` (`TextContainer`, `TextLayout`, `PreparedText`). No views, so it can measure and prepare off the main thread. |
 | `AttributedUI` | Swift | yes | `TextView`, `TextViewDelegate`, `InteractionEvent`; closures, values, and AsyncImage loading |
 | `AttributedEngineObjC` | ObjC++ | no | Model facade: `ATRDocumentBuilder`, `ATRDocument`, `ATRTextLayout`, `ATRRenderSnapshot`, C value types |
-| `AttributedViewObjC` | ObjC++ | no | View layer: `ATRTextDisplayView`, `ATRHitView`, gesture bindings, factories, registry, policy. Uses only the model facade's public ObjC API. |
+| `AttributedViewObjC` | ObjC++ | no | View layer: `ATRTextDisplayView`, `ATRHitView`, gesture bindings, factories, registry, policy; private `ATRTileController`, `ATRScrollObserver`, `ATRHitViewManager`. Uses only the model facade's public ObjC API. |
 | `AttributedEngine` | C++20 | no | `document/`, `resolve/`, `layout/`, `render/` with matching headers under `include/atr/`; links CoreFoundation, CoreGraphics, CoreText |
 
 | Test target | Covers |
 | --- | --- |
 | `AttributedCoreTests` | Lowering snapshots, Swift layout API |
-| `AttributedUITests` | `TextView` delegate events and AsyncImage loading |
-| `AttributedEngineTests` | Builder validation, dump, resolution, layout, rendering pixels |
-| `AttributedViewObjCTests` | Hit views, gestures, tiling, async rendering |
+| `AttributedUITests` | `TextView` delegate events, AsyncImage loading, prepared text from a background queue |
+| `AttributedEngineTests` | Builder validation, dump, resolution, layout, shared fallback fonts, incremental relayout, rendering pixels |
+| `AttributedViewObjCTests` | Hit views, gestures, viewport hit view reuse, tiling, scroll observation, prepared layouts, async rendering |
 
 - A SwiftPM target can't mix Swift with C-family code, and the view and model layers are split on purpose, so there are three non-Swift targets.
 - Cross-target internals:
@@ -65,4 +66,6 @@ Attributed (facade)
 ## Verification
 
 - macOS: `swift test`
-- iOS: `xcodebuild -scheme Attributed -destination "id=<iPhone simulator UDID>" test` (runs both test targets)
+- iOS: `xcodebuild -scheme Attributed-Package -destination "id=<iPhone simulator UDID>" test` runs all four test targets. `xcodebuild` may keep running after the last bundle reports, so scripts should stop it once every `Test Suite 'All tests'` line has appeared.
+- Demo: `Demo/AttributedDemo` (UIKit). Launch arguments `-benchmark size,script,style,mode` (segment indexes) and `-stressSeconds N` open the Performance and Stress pages for repeatable measurements.
+- README images: launching the Demo with `-readmeShots` renders every README example in light and dark to the app's `Documents/readme`; copy them to [`docs/images/readme/`](../images/readme/). The example texts live in `ReadmeShotsViewController.swift` and must stay in sync with the README's code blocks.

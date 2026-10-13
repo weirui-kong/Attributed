@@ -2,7 +2,7 @@
 
 ## Decision log
 
-Newest last. All entries are from 2026-10-13.
+Newest last. Entries 1–33 are from 2026-10-13; 34 onward from 2026-10-14.
 
 1. **Rewrite rather than refactor.** Swift DSL on top; an ObjC/C++ engine below; a CoreText-based display component comparable to `UITextView`.
 2. **Display only**, with simple taps.
@@ -13,7 +13,7 @@ Newest last. All entries are from 2026-10-13.
 7. **Sequential integer IDs** instead of UUIDs, for C struct mapping and a stable dump.
 8. **`Link` became a `Text` modifier** (`.link(url)`). **`.onTap` applies to any node.** The hosting view dispatches taps. Spans may wrap whole paragraphs.
 9. **Images:** one `Image` node; `ImageSource.resolved` / `.defer` selects the Image or AsyncImage pipeline; a fixed or adaptive size is required.
-10. **Text gradients** with line, paragraph, and document modes. Equal configurations share a rect; document mode carries a performance warning; emoji are excluded by default behind a future view switch.
+10. **Text gradients** with line, paragraph, and document modes. Equal configurations share a rect; document mode carries a performance warning; emoji are excluded by default; `TextView.appliesGradientToEmoji` opts them in.
 11. **Documentation in `docs/`** doubles as the project's memory and is updated with every decision.
 12. **Swift is a thin top-level wrapper.** Heavy computation lives in ObjC/C++, and all CoreText interaction is ObjC/C++ only.
 13. **The IR moved into the engine.** `IR.Builder` forwards each call to `ATRDocumentBuilder`; the Swift DSL is unchanged. Swift no longer exposes ops or resource tables; `dump()` comes from C++.
@@ -50,9 +50,10 @@ Newest last. All entries are from 2026-10-13.
     - Benchmark scroll metrics time main-thread work per frame with run loop observers, from wake-up to sleep after the Core Animation commit. Display-link intervals are quantized to the refresh interval, so they only count dropped frames.
 38. **An image arriving relays out only its paragraph.** The previous layout's lines are reused for every other paragraph. This keeps the synchronous apply rule (#34) affordable for adaptive AsyncImages in long text. The Performance page uses fixed image sizes, so loading never relays out at all. In Async mode it also turns on `rendersAsynchronously`, so drawing, and with it image decoding, runs off the main thread. The `.defer` loader itself stays on the main actor by API.
 
+39. **The package targets iOS 15.** A clean build for iOS 15 shows no availability warnings in the library, and the tests pass. No iOS 15 simulator runtime was installed, so this is compile-time compatibility, not a run on iOS 15. The demo stays at iOS 16 because it uses `OSAllocatedUnfairLock`. macOS stays at 13.
+
 ## Open questions
 
-- Commit the P0–P2 work now?
 - Default line height mode: `.typographic` (chosen) or `.glyphBounds`?
 - Gradient defaults chosen without confirmation:
   - The default scope is `.paragraph`.

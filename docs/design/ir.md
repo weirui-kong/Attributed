@@ -17,7 +17,7 @@ Swift DSL node ──lower(into:)──► IR.Builder (Swift, thin)
                                  ATRDocument ──► atr::Document (immutable)
 ```
 
-Swift keeps only what must be Swift: interaction closures and URLs, and image sources, which include the `defer` closures. `IR.LoweredText` pairs the engine document with those tables and exposes `interaction(for:)` and `imageSource(for:)`.
+Swift keeps only what must be Swift: interaction closures and attached values (of any type), a copy of each interaction's gesture, and image sources, which include the `defer` closures. `IR.LoweredText` pairs the engine document with those tables and exposes `interaction(for:)`, `gesture(for:)`, and `imageSource(for:)`.
 
 ## Engine storage (`atr::Document`)
 
@@ -27,6 +27,7 @@ std::u16string text;               // all text, UTF-16
 std::vector<TextStyle> textStyles;
 std::vector<ParagraphStyle> paragraphStyles;
 std::vector<Gradient> gradients;   // deduplicated
+std::vector<Gesture> interactions; // index = InteractionID
 std::vector<AttachmentDescriptor> attachments;   // index = AttachmentID
 ```
 
@@ -48,10 +49,11 @@ Why a flat op stream instead of a tree: it expresses arbitrary nesting without c
 1. Scopes nest strictly (`MismatchedScope`), and paragraphs never nest (`NestedParagraph`).
 2. `text` and `attachment` appear only inside a paragraph (`ContentOutsideParagraph`).
 3. A span lies either within one paragraph or around whole paragraphs; the latter supports paragraph-level `onTap`.
-4. Every scope is closed before `finish` (`UnclosedScope`), and a finished builder rejects further calls (`AlreadyFinished`).
-5. With nested interactions, the innermost one wins.
-6. Empty strings emit no `Text` op. A Swift `Text` with no style and no link emits no span.
-7. Paragraph separators are not part of the IR.
+4. A span's interaction must have been registered (`UnknownInteraction`).
+5. Every scope is closed before `finish` (`UnclosedScope`), and a finished builder rejects further calls (`AlreadyFinished`).
+6. With nested interactions, the innermost one per gesture key wins (see [dsl.md](dsl.md)).
+7. Empty strings emit no `Text` op. A Swift `Text` with no style and no link emits no span.
+8. Paragraph separators are not part of the IR.
 
 Swift's closure-based builder already keeps begin/end paired. The engine rules catch custom nodes that misuse the builder.
 
@@ -68,7 +70,7 @@ Swift value types (`IR.TextStyle`, `IR.ParagraphStyle`, `IR.Span`, `IR.Attachmen
 
 - Fonts and colors are stored unresolved in ObjC++ tables and deduplicated with `isEqual:`. Dynamic colors can therefore be re-resolved per appearance. Color 0 is always the semantic label color, used as the root foreground.
 - Gradients are deduplicated in C++ by value (colors, locations, points, scope).
-- `InteractionID` is assigned by Swift (index into its closure table). `AttachmentID`, `FontRef`, `ColorRef`, and `GradientRef` are assigned by the engine. All are sequential within one document.
+- `IR.Builder.register(_:gesture:)` registers an interaction with its gesture in the engine, which assigns the `InteractionID`; Swift stores the closure or value at the same index and checks that the indices agree. `AttachmentID`, `FontRef`, `ColorRef`, and `GradientRef` are also assigned by the engine. All are sequential within one document.
 
 ## Attachment descriptor
 
@@ -90,6 +92,7 @@ SPAN i0 text{}
   /P
 END
 g0 = linear (0,0.5)->(1,0.5) [c1 c2] @[0 0.25] scope=paragraph
+i0 = tap(1)
 ---
 f0 = <fontName> <size>
 c0 = <platform description>
@@ -97,5 +100,6 @@ c0 = <platform description>
 
 - Text is quoted. `\` `"` `\n` `\r` `\t` are escaped, and other control characters print as `\u{X}`. Unpaired surrogates become U+FFFD.
 - Numbers use the shortest round-trip form; integral values have no fraction.
+- Interactions print after gradients as `i<n> = tap(<count>)` or `i<n> = longPress(<seconds>)`.
 - Fills print as `c<n>` (color) or `g<n>` (gradient), for example `fg=g0` or `underlineFill=c2`. Underlines print as `underline=<lines>,<pattern>[,<thickness>][,radius=<r>|,capsule]`, for example `underline=single,dash,2` or `underline=single,dot,capsule`.
 - Everything before `---` is stable and can be asserted. Font and color descriptions come after it because platform descriptions vary across OS versions.

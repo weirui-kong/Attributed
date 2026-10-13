@@ -1,6 +1,6 @@
 # Layout and Rendering
 
-Status: layout is implemented ([`Sources/AttributedEngine/layout/Layout.cpp`](../../Sources/AttributedEngine/layout/Layout.cpp), [`Resolve.cpp`](../../Sources/AttributedEngine/resolve/Resolve.cpp)) and covered by [`Tests/AttributedEngineTests/LayoutTests.mm`](../../Tests/AttributedEngineTests/LayoutTests.mm) and [`Tests/AttributedCoreTests/TextLayoutTests.swift`](../../Tests/AttributedCoreTests/TextLayoutTests.swift). Rendering and tiling are design only (P3).
+Status: layout, rendering, tiling, and the text view are implemented. Layout: [`Sources/AttributedEngine/layout/`](../../Sources/AttributedEngine/layout/) and [`Resolve.cpp`](../../Sources/AttributedEngine/resolve/Resolve.cpp), covered by [`LayoutTests.mm`](../../Tests/AttributedEngineTests/LayoutTests.mm), [`FallbackFontTests.mm`](../../Tests/AttributedEngineTests/FallbackFontTests.mm), [`IncrementalLayoutTests.mm`](../../Tests/AttributedEngineTests/IncrementalLayoutTests.mm), and [`TextLayoutTests.swift`](../../Tests/AttributedCoreTests/TextLayoutTests.swift). Rendering and the view are described below with their own tests.
 
 The ideas come from YYText: an immutable layout computed for a container, then drawn separately, possibly off the main thread. They are adapted, not copied.
 
@@ -21,7 +21,7 @@ ATRDocument (immutable) + width ──compute──► ATRTextLayout (immutable)
   - The facade converts fonts to `CTFontRef` when the document is finished. `UIFont`/`NSFont` are toll-free bridged with `CTFont`, so this is a cast plus a retain.
   - Layout never touches colors. Colors are resolved only for drawing.
   - Attachments contribute only their descriptor sizes. `defer` closures are `@MainActor` and are never called during layout.
-- A Dynamic Type change re-resolves the font table and produces a new layout. An appearance change keeps the layout and only redraws.
+- An appearance change keeps the layout and only redraws. A Dynamic Type change re-resolving the font table and producing a new layout is planned.
 - An adaptive AsyncImage with no size yet lays out as a zero-width placeholder as tall as the adjacent character: the text right before it, else the text right after it, else the default font. The placeholder sits on the baseline like that character, so the line keeps its height until the image arrives.
 - When an AsyncImage arrives: a fixed size only redraws; an adaptive size needs a new layout, which takes the loaded size through `Container::attachmentContentSizes`.
 - **Incremental relayout:** `computeLayout` can take the previous layout of the same document, and the display view always passes its current one.
@@ -41,7 +41,8 @@ The C++ layout is split by stage under `Sources/AttributedEngine/layout/`, shari
 | `Typesetter` | Builds each paragraph's CoreText input on first use: attributes, attachment measurement, run delegates, the unsized-AsyncImage placeholder |
 | `LineBreaker` | Breaks and places lines: spacing, line height modes, alignment, container limits, truncation |
 | `LayoutAnnotator` | Runs in visual order, attachment frames, gradient groups, underline segments, hit regions, size |
-| `Layout.cpp` | `computeLayout` wires the three stages together |
+| `FallbackFontCache.cpp` | The per-document shared fallback fonts the typesetter assigns |
+| `Layout.cpp` | `computeLayout` wires the three stages together and decides whether a previous layout can be reused |
 
 
 1. **Resolve** (once per document, pure C++): the op stream becomes paragraphs of UTF-16 text and maximal runs with fully resolved styles. Equal resolved styles share one index. Attachments become U+FFFC runs of their own.

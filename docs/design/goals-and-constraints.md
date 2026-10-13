@@ -3,7 +3,7 @@
 ## Goals
 
 - Build a text layout and drawing engine directly on CoreText, and ship a high-performance display component comparable to `UITextView`.
-- Display only. No editing, input methods, or rich selection. Simple tap interactions (links and `onTap`) are in scope.
+- Display only. No editing, input methods, or rich selection. Simple gestures are in scope: taps (links, `onTap` with a tap count) and long presses (`onLongPress`).
 
 ## Hard constraints
 
@@ -11,7 +11,7 @@
   - CoreText's `CTTypesetter` and `CTLine` only accept `CFAttributedString`. The engine may build one per paragraph internally and discard it; it is never the document model and never leaves the engine.
 - The public API is pure Swift: the DSL plus Swift wrappers. Callers never see `@objc` or Objective-C types.
 - Swift is only a thin top-level wrapper. All heavy computation is written in Objective-C/C++: document storage, resource deduplication, style resolution, run tables, layout, drawing, and hit testing. Anything that talks to CoreText is never written in Swift.
-- Platforms: iOS 16+ and macOS 13+. The engine is platform-neutral; views are iOS-first.
+- Platforms: iOS 15+ and macOS 13+. The engine is platform-neutral; views are iOS-first.
 
 ## Naming
 

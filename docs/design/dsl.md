@@ -1,6 +1,6 @@
 # DSL
 
-Status: lowering to the IR is implemented in [`Sources/AttributedCore/`](../../Sources/AttributedCore/). Rendering, loading, and tap dispatch wait for the engine and the view.
+Status: implemented. Lowering lives in [`Sources/AttributedCore/`](../../Sources/AttributedCore/); layout, drawing, image loading, and gesture dispatch are done by the engine and `TextView` (see [layout-and-rendering.md](layout-and-rendering.md)).
 
 ## Document and extension point
 
@@ -37,7 +37,7 @@ Text("d").underline(ATRUnderlineStyle(thickness: 4, corners: .capsule))
 ```
 
 - The engine draws underlines as decorations; the platform underline is not used. This is what allows gradient underlines.
-- `UnderlineStyle(lines:pattern:thickness:)`:
+- `UnderlineStyle(lines:pattern:thickness:corners:)`:
   - `lines`: `.single` or `.double`.
   - `pattern`: `.solid`, `.dot`, `.dash`, `.dashDot`, or `.dashDotDot`.
   - `thickness`: nil uses the font's underline thickness.
@@ -106,10 +106,10 @@ Image(.defer { makeImage() }, size: .adaptive(maxWidth: 200))
 
 - `ImageSource` selects the pipeline:
   - `.resolved(PlatformImage)` uses the Image pipeline; its content is available at lowering time.
-  - `` .`defer`(@MainActor () -> PlatformImage) `` uses the AsyncImage pipeline. The host calls the closure after the initial render and updates rendering once the image is installed (planned).
+  - `` .`defer`(@MainActor () -> PlatformImage) `` uses the AsyncImage pipeline. `TextView` calls the closure on the main queue right after showing the text (skipped if the text changed meanwhile), then redraws or relays out.
 - A size is required: `.fixed(width:height:)` or `.adaptive(maxWidth:maxHeight:)`. Adaptive preserves the aspect ratio, fits the maxima and the available line width, never upscales, and needs at least one maximum. There is no intrinsic size.
 - An adaptive AsyncImage with no size yet lays out as a zero-width placeholder as tall as the adjacent character: the text right before it, else the text right after it, else the default font. The placeholder sits on the baseline like that character, so the line keeps its height until the image arrives.
-- Update rule: a fixed AsyncImage only redraws when its content arrives. An adaptive one needs a relayout, using the loaded size as a content-size override.
+- Update rule: a fixed AsyncImage only redraws when its content arrives. An adaptive one needs a relayout, using the loaded size as a content-size override; only the paragraph holding it is laid out again when the container has no line or height limit. Prefer fixed sizes for long text.
 - Alignment: `.baseline`, `.center`, `.top`, `.bottom`, `.offset(_:)`.
 - Remote URLs, async loaders, and placeholders from v0.1 were removed.
 
@@ -135,6 +135,6 @@ ATRParagraph {
 | --- | --- |
 | `.line` | one CTLine |
 | `.paragraph` (default) | one paragraph, across its lines |
-| `.document` | the whole document. **Warning:** every matching run must be laid out before any can be drawn, which defeats incremental and tiled rendering and is very expensive for long text. |
+| `.document` | the whole document. **Warning:** the joined rect depends on every matching run, so it rules out lazy layout (planned) and can stretch one gradient across very long text. Tiled drawing still works, because tiles read the joined rect from the layout. |
 
-- Emoji are excluded from gradients by default and keep their own colors. The hosting text view will offer a switch to include them (planned).
+- Emoji are excluded from gradients by default and keep their own colors. `TextView.appliesGradientToEmoji` includes them.

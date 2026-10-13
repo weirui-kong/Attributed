@@ -12,7 +12,7 @@ import PackageDescription
 let package = Package(
     name: "Attributed",
     platforms: [
-        .iOS(.v16),
+        .iOS(.v15),
         .macOS(.v13)
     ],
     products: [

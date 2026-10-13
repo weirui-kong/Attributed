@@ -34,6 +34,11 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             navigationController.pushViewController(stress, animated: false)
         }
 
+        // `-readmeShots` renders the README example images.
+        if arguments.contains("-readmeShots") {
+            navigationController.pushViewController(ReadmeShotsViewController(), animated: false)
+        }
+
         // `-benchmark 3,1,2,1` opens the performance page and runs the given
         // segment indexes for size, script, style, and mode.
         if let index = arguments.firstIndex(of: "-benchmark"), index + 1 < arguments.count {
