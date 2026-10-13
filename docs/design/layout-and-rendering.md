@@ -43,6 +43,7 @@ The C++ layout is split by stage under `Sources/AttributedEngine/layout/`, shari
 | `LayoutAnnotator` | Runs in visual order, attachment frames, gradient groups, underline segments, hit regions, size |
 | `FallbackFontCache.cpp` | The per-document shared fallback fonts the typesetter assigns |
 | `Layout.cpp` | `computeLayout` wires the three stages together and decides whether a previous layout can be reused |
+| `Geometry.cpp` | Position and rect queries over a finished layout ([text-geometry.md](text-geometry.md)) |
 
 
 1. **Resolve** (once per document, pure C++): the op stream becomes paragraphs of UTF-16 text and maximal runs with fully resolved styles. Equal resolved styles share one index. Attachments become U+FFFC runs of their own.
@@ -174,6 +175,8 @@ layout.size; layout.lineCount; layout.isTruncated
 ```
 
 `AttributedText.prepare(in:)` lowers and lays out in one step on any thread. It returns a `Sendable` `PreparedText` that `TextView.setText(_:)` shows without laying out again when the container matches the view.
+
+Position and rect queries on a layout are in [text-geometry.md](text-geometry.md).
 
 `layout(in:)` is synchronous and safe on any thread. `IR.Document` and `TextLayout` are `Sendable`, so a caller can lay out in a detached task and hand the result to the main actor. The Swift alias `ATRTextLayout` and the internal ObjC class `ATRTextLayout` share a name; the ObjC module is never visible to clients, so the two don't collide.
 

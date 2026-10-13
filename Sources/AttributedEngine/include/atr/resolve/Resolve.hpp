@@ -53,6 +53,8 @@ struct ResolvedParagraph {
     ResolvedParagraphStyle style;
     // Style of the paragraph scope itself; sizes an empty paragraph.
     uint32_t paragraphTextStyle = 0;
+    // Where the paragraph starts in the document text.
+    uint32_t start = 0;
     std::u16string text;
     std::vector<Run> runs;
 };
@@ -67,6 +69,8 @@ struct ResolvedDocument {
     // by one newline and each attachment is one U+FFFC.
     std::vector<std::pair<uint32_t, uint32_t>> interactionRanges;
 
+    // Length of the document text in the same index space.
+    uint32_t length() const;
     // Document text for a range in the same index space.
     std::u16string text(uint32_t location, uint32_t length) const;
     std::vector<ResolvedParagraph> paragraphs;

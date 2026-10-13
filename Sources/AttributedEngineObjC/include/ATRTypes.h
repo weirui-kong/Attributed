@@ -255,6 +255,36 @@ typedef struct ATRDecorationInfo {
     int32_t gradientGroup;
 } ATRDecorationInfo;
 
+// Which visual place an offset means when it has two: the end of one line
+// and the start of the next at a soft break, or the two sides of a bidi
+// boundary. Upstream belongs to the preceding character.
+typedef NS_ENUM(uint8_t, ATRTextAffinity) {
+    ATRTextAffinityUpstream,
+    ATRTextAffinityDownstream,
+};
+
+// A document-global UTF-16 offset.
+typedef struct ATRTextPosition {
+    NSUInteger offset;
+    ATRTextAffinity affinity;
+} ATRTextPosition;
+
+typedef NS_ENUM(uint8_t, ATRTextGranularity) {
+    ATRTextGranularityCharacter,
+    ATRTextGranularityWord,
+    ATRTextGranularitySentence,
+    ATRTextGranularityLine,
+    ATRTextGranularityParagraph,
+};
+
+typedef struct ATRSelectionRect {
+    CGRect rect;
+    uint32_t line;
+    BOOL rightToLeft;
+    BOOL containsStart;
+    BOOL containsEnd;
+} ATRSelectionRect;
+
 // Where an interaction set can be hit: the union of its runs on one line.
 typedef struct ATRHitRegion {
     uint32_t interactionSet;

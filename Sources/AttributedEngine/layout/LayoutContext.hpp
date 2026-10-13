@@ -11,6 +11,8 @@ namespace atr::layout {
 // truncation token runs, maps back to its resolved style and attachment.
 inline const CFStringRef kStyleAttribute = CFSTR("ATRStyle");
 inline const CFStringRef kAttachmentAttribute = CFSTR("ATRAttachment");
+// Marks the runs of a truncation token, which map to no document text.
+inline const CFStringRef kTruncationTokenAttribute = CFSTR("ATRTruncationToken");
 
 // Wrapping is disabled by laying out against a width no line reaches.
 constexpr double kUnboundedWidth = 1e9;

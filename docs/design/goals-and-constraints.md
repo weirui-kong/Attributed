@@ -3,7 +3,8 @@
 ## Goals
 
 - Build a text layout and drawing engine directly on CoreText, and ship a high-performance display component comparable to `UITextView`.
-- Display only. No editing, input methods, or rich selection. Simple gestures are in scope: taps (links, `onTap` with a tap count) and long presses (`onLongPress`).
+- Display only. No editing or input methods. Simple gestures are in scope: taps (links, `onTap` with a tap count) and long presses (`onLongPress`).
+- Public text geometry queries on `TextLayout` are in scope ([text-geometry.md](text-geometry.md)). Read-only text selection is planned on top of them.
 
 ## Hard constraints
 

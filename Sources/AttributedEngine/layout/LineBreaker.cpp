@@ -119,6 +119,46 @@ double flush(const ResolvedParagraphStyle &style) {
     return 0;
 }
 
+// End of the paragraph text a truncated line shows, ignoring token runs.
+// Run string ranges are not enough: with an empty token, CoreText keeps one
+// run whose range still covers the cut text, so the end comes from the last
+// glyph's character, widened to its whole composed sequence.
+uint32_t visibleEnd(CTLineRef line, uint32_t location, const std::u16string &text) {
+    CFArrayRef runs = CTLineGetGlyphRuns(line);
+    std::optional<CFIndex> last;
+    std::vector<CFIndex> indices;
+
+    for (CFIndex index = 0; index < CFArrayGetCount(runs); ++index) {
+        auto run = static_cast<CTRunRef>(CFArrayGetValueAtIndex(runs, index));
+
+        if (CFDictionaryContainsKey(CTRunGetAttributes(run), kTruncationTokenAttribute)) {
+            continue;
+        }
+
+        indices.resize(CTRunGetGlyphCount(run));
+        CTRunGetStringIndices(run, CFRangeMake(0, 0), indices.data());
+
+        for (CFIndex value : indices) {
+            if (value < static_cast<CFIndex>(text.size())) {
+                last = std::max(last.value_or(value), value);
+            }
+        }
+    }
+
+    if (!last) {
+        return location;
+    }
+
+    auto string = CFRef<CFStringRef>::adopt(CFStringCreateWithCharactersNoCopy(
+        nullptr,
+        reinterpret_cast<const UniChar *>(text.data()),
+        static_cast<CFIndex>(text.size()),
+        kCFAllocatorNull
+    ));
+    CFRange sequence = CFStringGetRangeOfComposedCharactersAtIndex(string.get(), *last);
+    return static_cast<uint32_t>(std::max<CFIndex>(location, sequence.location + sequence.length));
+}
+
 } // namespace
 
 LineBreaker::LineBreaker(const LayoutContext &context, Typesetter &typesetter, Layout &layout)
@@ -304,6 +344,7 @@ void LineBreaker::truncateLastLine() {
 
     if (!line.line) {
         tokenAttributes = typesetter_.attributes(paragraph.paragraphTextStyle);
+        CFDictionarySetValue(tokenAttributes.get(), kTruncationTokenAttribute, kCFBooleanTrue);
         auto string = CFRef<CFAttributedStringRef>::adopt(
             CFAttributedStringCreate(nullptr, token.get(), tokenAttributes.get())
         );
@@ -315,6 +356,7 @@ void LineBreaker::truncateLastLine() {
         tokenAttributes = CFRef<CFMutableDictionaryRef>::adopt(CFDictionaryCreateMutableCopy(nullptr, 0, last));
         CFDictionaryRemoveValue(tokenAttributes.get(), kCTRunDelegateAttributeName);
         CFDictionaryRemoveValue(tokenAttributes.get(), kAttachmentAttribute);
+        CFDictionarySetValue(tokenAttributes.get(), kTruncationTokenAttribute, kCFBooleanTrue);
 
         if (lineEnd < static_cast<CFIndex>(paragraph.text.size())) {
             source = CFRef<CTLineRef>::adopt(CTTypesetterCreateLine(
@@ -364,6 +406,9 @@ void LineBreaker::truncateLastLine() {
 
     line.line = CFRef<CTLineRef>::adopt(truncated);
     line.truncated = true;
+    // Truncation may keep fewer characters than the line had, or more when
+    // the line broke early at a word boundary.
+    line.length = visibleEnd(truncated, line.location, paragraph.text) - line.location;
     place(line, true);
     cursor_ = line.bottom();
 }

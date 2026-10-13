@@ -63,4 +63,17 @@ Design: [layout-and-rendering.md](layout-and-rendering.md).
 - [x] Demo Performance page and FPS monitor. The page runs 1K–1M characters, English or mixed scripts, plain, random, or complex styles, sync or async, and times each stage. Launch argument `-benchmark size,script,style,mode`.
 - [ ] Exclusion paths and lazy layout (from P2).
 
-Out of scope for now: editing, input methods, and rich selection.
+## P4: Text geometry and selection
+
+Design: [text-geometry.md](text-geometry.md).
+
+- [x] Design the public geometry API and its semantics.
+- [x] Engine: paragraph start table and global offset conversion.
+- [x] Engine: line lookup by y and by offset; point to offset; caret rects.
+- [x] Engine: selection rects with bidi splitting, truncation, and attachments.
+- [x] Engine: granularity ranges (grapheme, word, sentence, line, paragraph).
+- [x] ObjC facade and Swift value types on `TextLayout`, with tests.
+- [ ] iOS read-only selection on the public queries (approach still open).
+- [ ] macOS selection.
+
+Out of scope for now: editing and input methods.

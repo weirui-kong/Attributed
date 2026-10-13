@@ -89,6 +89,7 @@ void LayoutAnnotator::collectRuns(Line &line) {
         lineRun.x = line.x + minX;
         lineRun.width = maxX - minX;
         lineRun.colorGlyphs = font && (CTFontGetSymbolicTraits(font) & kCTFontTraitColorGlyphs);
+        lineRun.truncationToken = CFDictionaryContainsKey(attributes, kTruncationTokenAttribute);
         line.runs.push_back(std::move(lineRun));
     }
 

@@ -262,6 +262,7 @@ private:
         result_.paragraphs.emplace_back();
         paragraph_ = &result_.paragraphs.back();
         paragraph_->paragraphTextStyle = currentStyle();
+        paragraph_->start = paragraphStart_;
     }
 
     void endParagraph() {
@@ -333,22 +334,40 @@ ResolvedDocument resolve(const Document &document) {
     return Resolver(document).run();
 }
 
-std::u16string ResolvedDocument::text(uint32_t location, uint32_t length) const {
-    std::u16string full;
+uint32_t ResolvedDocument::length() const {
+    if (paragraphs.empty()) {
+        return 0;
+    }
 
-    for (size_t index = 0; index < paragraphs.size(); ++index) {
-        if (index > 0) {
-            full.push_back(u'\n');
+    return paragraphs.back().start + static_cast<uint32_t>(paragraphs.back().text.size());
+}
+
+std::u16string ResolvedDocument::text(uint32_t location, uint32_t length) const {
+    std::u16string result;
+    uint64_t end = std::min<uint64_t>(uint64_t(location) + length, this->length());
+
+    for (size_t index = 0; index < paragraphs.size() && location < end; ++index) {
+        const ResolvedParagraph &paragraph = paragraphs[index];
+        uint32_t paragraphEnd = paragraph.start + static_cast<uint32_t>(paragraph.text.size());
+
+        if (location > paragraphEnd) {
+            continue;
         }
 
-        full += paragraphs[index].text;
+        if (location >= paragraph.start) {
+            auto count = static_cast<uint32_t>(std::min<uint64_t>(end, paragraphEnd) - location);
+            result.append(paragraph.text, location - paragraph.start, count);
+            location += count;
+        }
+
+        // The separator after this paragraph.
+        if (location == paragraphEnd && location < end) {
+            result.push_back(u'\n');
+            location += 1;
+        }
     }
 
-    if (location >= full.size()) {
-        return {};
-    }
-
-    return full.substr(location, length);
+    return result;
 }
 
 std::string ResolvedDocument::dump() const {

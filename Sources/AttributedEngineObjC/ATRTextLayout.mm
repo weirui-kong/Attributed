@@ -7,6 +7,8 @@
 
 #include <algorithm>
 
+#include "atr/layout/Geometry.hpp"
+
 
 #if !__has_feature(objc_arc)
 #error "AttributedEngineObjC must be compiled with ARC."
@@ -16,6 +18,27 @@ namespace {
 
 CGRect makeRect(const atr::Rect &rect) {
     return CGRectMake(rect.x, rect.y, rect.width, rect.height);
+}
+
+NSRange makeRange(atr::TextRange range) {
+    return NSMakeRange(range.location, range.length);
+}
+
+uint32_t clampOffset(NSUInteger offset) {
+    return static_cast<uint32_t>(std::min<NSUInteger>(offset, UINT32_MAX));
+}
+
+atr::TextRange clampRange(NSRange range) {
+    uint32_t location = clampOffset(range.location);
+    auto length = static_cast<uint32_t>(std::min<NSUInteger>(range.length, UINT32_MAX - location));
+    return {location, length};
+}
+
+atr::TextPosition enginePosition(ATRTextPosition position) {
+    return {
+        clampOffset(position.offset),
+        position.affinity == ATRTextAffinityUpstream ? atr::Affinity::Upstream : atr::Affinity::Downstream,
+    };
 }
 
 } // namespace
@@ -133,6 +156,82 @@ CGRect makeRect(const atr::Rect &rect) {
     }
 
     return result;
+}
+
+- (atr::TextGeometry)geometry {
+    return atr::TextGeometry(_document.resolvedDocument, *_layout);
+}
+
+- (NSUInteger)textLength {
+    return self.geometry.textLength();
+}
+
+- (NSRange)visibleRange {
+    return makeRange(self.geometry.visibleRange());
+}
+
+- (NSRange)rangeOfLineAtIndex:(NSUInteger)index {
+    return makeRange(self.geometry.lineRange(index));
+}
+
+- (NSUInteger)lineIndexAtY:(CGFloat)y {
+    return self.geometry.lineAtY(y).value_or(NSNotFound);
+}
+
+- (NSUInteger)lineIndexContainingPosition:(ATRTextPosition)position {
+    return self.geometry.lineContaining(enginePosition(position)).value_or(NSNotFound);
+}
+
+- (NSRange)lineIndexesBetweenMinY:(CGFloat)minY maxY:(CGFloat)maxY {
+    auto [first, end] = self.geometry.linesBetween(minY, maxY);
+    return NSMakeRange(first, end - first);
+}
+
+- (NSUInteger)characterIndexAtPoint:(CGPoint)point {
+    std::optional<uint32_t> index = self.geometry.characterIndex(point.x, point.y);
+    return index ? *index : NSNotFound;
+}
+
+- (ATRTextPosition)closestPositionToPoint:(CGPoint)point {
+    atr::TextPosition position = self.geometry.closestPosition(point.x, point.y);
+    return {
+        position.offset,
+        position.affinity == atr::Affinity::Upstream ? ATRTextAffinityUpstream : ATRTextAffinityDownstream,
+    };
+}
+
+- (CGRect)caretRectForPosition:(ATRTextPosition)position {
+    return makeRect(self.geometry.caretRect(enginePosition(position)));
+}
+
+- (NSArray<NSValue *> *)selectionRectsForRange:(NSRange)range minY:(CGFloat)minY maxY:(CGFloat)maxY {
+    NSMutableArray<NSValue *> *result = [NSMutableArray array];
+
+    for (const atr::SelectionRect &selection : self.geometry.selectionRects(clampRange(range), minY, maxY)) {
+        ATRSelectionRect value = {
+            makeRect(selection.rect),
+            selection.line,
+            selection.rightToLeft,
+            selection.containsStart,
+            selection.containsEnd,
+        };
+        [result addObject:[NSValue valueWithBytes:&value objCType:@encode(ATRSelectionRect)]];
+    }
+
+    return result;
+}
+
+- (CGRect)boundingRectForRange:(NSRange)range {
+    std::optional<atr::Rect> rect = self.geometry.boundingRect(clampRange(range));
+    return rect ? makeRect(*rect) : CGRectNull;
+}
+
+- (NSRange)rangeEnclosingIndex:(NSUInteger)index granularity:(ATRTextGranularity)granularity {
+    std::optional<atr::TextRange> range = self.geometry.rangeEnclosing(
+        clampOffset(index),
+        static_cast<atr::Granularity>(granularity)
+    );
+    return range ? makeRange(*range) : NSMakeRange(NSNotFound, 0);
 }
 
 - (ATRDecorationInfo)decorationAtIndex:(NSUInteger)index {

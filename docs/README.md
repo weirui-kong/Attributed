@@ -13,6 +13,7 @@ These documents double as the project's working memory. Update them in the same 
 | [IR](design/ir.md) | Op stream, styles, resources, invariants, dump format |
 | [DSL](design/dsl.md) | Nodes and modifiers: text, interactions, images, gradients |
 | [Layout and rendering](design/layout-and-rendering.md) | Width-based immutable layout, off-main computation, drawing, viewport tiling, gradients across tiles |
+| [Text geometry](design/text-geometry.md) | Public position and rect queries on a layout; the base for text selection |
 | [Roadmap](design/roadmap.md) | Phases and progress checklist |
 | [Decisions](design/decisions.md) | Decision log and open questions |
 

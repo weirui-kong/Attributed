@@ -94,6 +94,8 @@ struct LineRun {
     double width = 0;
     // Runs from color fonts, such as emoji, skip gradient fills by default.
     bool colorGlyphs = false;
+    // A truncation token run; its string indices are not document text.
+    bool truncationToken = false;
     std::optional<uint32_t> fillGroup;
 };
 
@@ -101,7 +103,8 @@ struct Line {
     // Null for an empty paragraph.
     CFRef<CTLineRef> line;
     uint32_t paragraph = 0;
-    // Paragraph-local UTF-16 range.
+    // Paragraph-local UTF-16 range of the text the line shows. A truncated
+    // line covers only its text before the token.
     uint32_t location = 0;
     uint32_t length = 0;
     double x = 0;
