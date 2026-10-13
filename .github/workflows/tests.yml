@@ -1,0 +1,100 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: macOS
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Run tests
+        run: swift test
+
+  ios:
+    name: iOS Simulator
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: xcodebuild -version
+      - name: Pick a simulator
+        run: |
+          # The newest available iPhone on the newest iOS runtime.
+          udid=$(xcrun simctl list devices available --json | jq -r '
+            .devices
+            | to_entries
+            | map(select(.key | contains("iOS")))
+            | sort_by(.key | capture("iOS-(?<major>[0-9]+)-(?<minor>[0-9]+)") | [(.major | tonumber), (.minor | tonumber)])
+            | last
+            | .value
+            | map(select(.name | startswith("iPhone")))
+            | first
+            | .udid')
+          if [ -z "$udid" ] || [ "$udid" = "null" ]; then
+            echo "No iPhone simulator is available." >&2
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl list devices available | grep "$udid"
+      - name: Run tests
+        run: |
+          # xcodebuild may keep running after the last test bundle reports
+          # (see docs/design/architecture.md), so it runs in the background
+          # and is stopped once all four bundles have finished.
+          log="$RUNNER_TEMP/ios-tests.log"
+          xcodebuild -scheme Attributed-Package \
+            -destination "id=$SIMULATOR_UDID" \
+            test > "$log" 2>&1 &
+          pid=$!
+          bundles=4
+
+          while kill -0 "$pid" 2>/dev/null; do
+            finished=$(grep -cE "Test Suite 'All tests' (passed|failed)" "$log" || true)
+
+            if [ "$finished" -ge "$bundles" ]; then
+              sleep 5
+              kill "$pid" 2>/dev/null || true
+              break
+            fi
+
+            sleep 5
+          done
+
+          # The step shell uses -e, and a stopped xcodebuild exits non-zero.
+          status=0
+          wait "$pid" || status=$?
+          grep -E "error:|Test Case .* failed|Executed [0-9]+ tests|Test Suite 'All tests'|\*\* (BUILD|TEST) " "$log" || true
+
+          if grep -qE "Test Suite 'All tests' failed|\*\* (BUILD|TEST) FAILED \*\*" "$log"; then
+            exit 1
+          fi
+
+          finished=$(grep -cE "Test Suite 'All tests' passed" "$log" || true)
+
+          if [ "$finished" -lt "$bundles" ]; then
+            echo "Only $finished of $bundles test bundles passed (xcodebuild exit status $status)." >&2
+            tail -n 100 "$log"
+            exit 1
+          fi
+      - name: Upload the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-tests-log
+          path: ${{ runner.temp }}/ios-tests.log
+          if-no-files-found: ignore
