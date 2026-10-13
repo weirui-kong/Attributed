@@ -8,18 +8,45 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <memory>
+#include <mutex>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "atr/support/CFRef.hpp"
 #include "atr/resolve/Resolve.hpp"
 
 namespace atr {
 
+// CoreText makes its own fallback font objects for every typesetter, and
+// layout uses one typesetter per paragraph, so a document with many
+// paragraphs in fallback scripts would hold thousands of copies of the same
+// few fonts, tens of kilobytes each. Layout assigns fallback fonts from this
+// cache instead, so each fallback of a font exists once per document.
+// Thread-safe.
+class FallbackFontCache {
+public:
+    // The fallback CoreText picks for the start of `range`, as the shared
+    // instance for `font`, the index of `base` in its font table.
+    CTFontRef fallback(int32_t font, CTFontRef base, CFStringRef string, CFRange range);
+
+private:
+    struct Entry {
+        int32_t font;
+        CFRef<CFStringRef> name;
+        CFRef<CTFontRef> fallback;
+    };
+
+    std::mutex mutex_;
+    std::vector<Entry> entries_;
+};
+
 // Fonts as CoreText objects, so layout never touches UIKit or AppKit.
 struct FontTable {
     CFRef<CTFontRef> defaultFont;
     std::vector<CFRef<CTFontRef>> fonts;
+    std::shared_ptr<FallbackFontCache> fallbacks = std::make_shared<FallbackFontCache>();
 
     CTFontRef font(int32_t index) const {
         return index == kDefaultFont ? defaultFont.get() : fonts[index].get();
@@ -137,6 +164,8 @@ struct HitRegion {
 
 class Layout {
 public:
+    // The container this layout was made for.
+    Container container;
     double width = 0;
     double height = 0;
     bool truncated = false;
@@ -148,11 +177,19 @@ public:
 };
 
 // Safe to call on any thread: it uses only CoreText and immutable inputs.
+//
+// `previous`, a layout of the same document, lets a relayout that only
+// changes attachment content sizes, such as an AsyncImage arriving, break
+// just the paragraphs holding those attachments and shift the others' lines.
+// It is used only when it was made for the same container apart from content
+// sizes, without line or height limits, and was not truncated; otherwise
+// everything is laid out again.
 std::shared_ptr<const Layout> computeLayout(
     const Document &document,
     const ResolvedDocument &resolved,
     const FontTable &fonts,
-    const Container &container
+    const Container &container,
+    const Layout *previous = nullptr
 );
 
 } // namespace atr

@@ -37,6 +37,18 @@ Newest last. All entries are from 2026-10-13.
 31. **Target layout:** the Swift DSL and layout (`AttributedCore`) are split from the views (`AttributedUI`), and the ObjC facade is split into a model target (`AttributedEngineObjC`) and a view target (`AttributedViewObjC`). The C++ engine is grouped by pipeline stage. The view layer uses only the model's public ObjC API.
 32. **Scroll observation lives on `didMoveToWindow`.** The view observes only inside a window and holds the scroll view strongly while observing; no unretained pointers.
 33. **Stress page uses a fixed set of font sizes.** UIKit and CoreText cache every distinct font instance for the life of the process. With continuous random sizes, a 40-second run left 76,735 `UICTFont` objects and a 1.58 GB footprint, although no engine or view objects survived. With quantized sizes, the footprint stays between 23 and 38 MB, and `leaks` reports 0 leaks. Callers that generate font sizes dynamically should quantize them for the same reason.
+34. **Applying a layout is always synchronous; only bitmap drawing may be asynchronous.**
+    - Layout can be computed ahead of time on any thread as `PreparedText`. The view applies it synchronously when its inputs match, and otherwise lays out synchronously itself.
+    - The view never has a pending layout. It never shows or reports a layout for other inputs, and `textLayout`, the hit views, and the intrinsic size always agree.
+    - A view-level `layoutsAsynchronously` mode existed briefly and was removed for this reason.
+    - `rendersAsynchronously` (drawing bitmaps) is the only asynchronous step inside the view.
+35. **Fallback fonts come from a per-document cache.** CoreText does not share fallback font objects across typesetters. Measured on 1M mixed-script characters with complex styles, at first draw: 686 MB → 278 MB, and layout 2.3 s → 1.8 s. The cache is per document, not global, so it is freed with the document.
+36. **Hit views follow the viewport.** With viewport rendering on, only interaction sets near the visible region get hit views. Hit views are pooled by gesture signature and reused by rebinding interaction IDs, which keeps their recognizers. Hit views stay synchronous on the main thread. A hit view in the middle of recognizing a gesture is never reused.
+37. **The demo works around a LookinServer bug.**
+    - The bug: LookinServer 1.2.8, the latest release, which upstream master still matches, hides every sublayer before a layer's solo screenshot. For layers over 20,000 pt, it returns early and never shows them again. A long text view (100K characters is about 67,000 pt) then stays blank after one Lookin capture.
+    - The workaround: the demo's `LookinWorkaround` wraps `lks_soloScreenshotWithLowQuality:` and shows again whatever it hid. The library is unchanged.
+    - Benchmark scroll metrics time main-thread work per frame with run loop observers, from wake-up to sleep after the Core Animation commit. Display-link intervals are quantized to the refresh interval, so they only count dropped frames.
+38. **An image arriving relays out only its paragraph.** The previous layout's lines are reused for every other paragraph. This keeps the synchronous apply rule (#34) affordable for adaptive AsyncImages in long text. The Performance page uses fixed image sizes, so loading never relays out at all. In Async mode it also turns on `rendersAsynchronously`, so drawing, and with it image decoding, runs off the main thread. The `.defer` loader itself stays on the main actor by API.
 
 ## Open questions
 

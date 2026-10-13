@@ -447,4 +447,145 @@ TestScrollView *makeScrollView(ATRPlatformView *content, CGSize contentSize) {
     XCTAssertEqual(CGImageGetHeight(image), static_cast<size_t>(std::ceil(80 * layer.contentsScale)));
 }
 
+- (void)testMatchingPreparedLayoutIsUsedAsIs {
+    ATRDocument *document = [self interactiveDocument];
+    ATRTextContainer container = {400, INFINITY, 0, ATRLineHeightModeTypographic};
+    ATRTextLayout *prepared = [document layoutWithContainer:container truncationToken:@"…"];
+    ATRTextDisplayView *display = [[ATRTextDisplayView alloc] initWithFrame:CGRectMake(0, 0, 400, 200)];
+    [display setDocument:document layout:prepared];
+    layoutNow(display);
+
+    XCTAssertEqual(display.textLayout, prepared);
+    XCTAssertEqual(display.hitViews.count, 3u);
+}
+
+- (void)testMismatchedPreparedLayoutIsReplaced {
+    ATRDocument *document = [self interactiveDocument];
+    ATRTextContainer narrow = {120, INFINITY, 0, ATRLineHeightModeTypographic};
+    ATRTextContainer limited = {400, INFINITY, 1, ATRLineHeightModeTypographic};
+    ATRTextDisplayView *display = [[ATRTextDisplayView alloc] initWithFrame:CGRectMake(0, 0, 400, 200)];
+
+    for (ATRTextLayout *prepared in @[
+             [document layoutWithContainer:narrow truncationToken:nil],
+             [document layoutWithContainer:limited truncationToken:nil],
+             [[self interactiveDocument] layoutWithContainer:narrow truncationToken:nil],
+         ]) {
+        [display setDocument:document layout:prepared];
+        layoutNow(display);
+
+        XCTAssertNotEqual(display.textLayout, prepared);
+        XCTAssertEqual(display.textLayout.container.width, 400);
+        XCTAssertEqual(display.textLayout.container.maximumNumberOfLines, 0u);
+    }
+}
+
+// 60 paragraphs, each with one interactive word: a single tap, or a long
+// press on every fifth paragraph.
+- (ATRDocument *)longInteractiveDocument {
+    ATRDocumentBuilder *builder = [[ATRDocumentBuilder alloc] init];
+    int32_t font = [builder registerFont:[ATRPlatformFont systemFontOfSize:20]];
+
+    for (int index = 0; index < 60; ++index) {
+        ATRGesture gesture = index % 5 == 0 ? ATRGesture{ATRGestureKindLongPress, 0, 0.5} : ATRGesture{ATRGestureKindTap, 1, 0};
+        uint32_t interaction = [builder registerInteractionWithGesture:gesture];
+        [builder beginParagraph:{} textStyle:fontStyle(font)];
+        [builder appendText:[NSString stringWithFormat:@"Paragraph %d ", index]];
+        [builder pushSpan:{} interaction:interaction];
+        [builder appendText:@"link"];
+        [builder popSpan];
+        [builder endParagraph];
+    }
+
+    return [builder finish];
+}
+
+- (void)testViewportHitViewsFollowAndAreReused {
+    CountingTapFactory *factory = [[CountingTapFactory alloc] init];
+    ATRGestureRecognizerRegistry *registry = [ATRGestureRecognizerRegistry defaultRegistry];
+    [registry registerFactory:factory forKind:ATRGestureKindTap];
+
+    ATRTextDisplayView *display = [[ATRTextDisplayView alloc] initWithFrame:CGRectZero];
+    display.gestureRegistry = registry;
+    display.document = [self longInteractiveDocument];
+    display.viewportRenderingEnabled = YES;
+    display.tileHeight = 100;
+    CGSize size = [display sizeThatFitsWidth:320];
+    display.frame = CGRectMake(0, 0, 320, size.height);
+    TestScrollView *scrollView = makeScrollView(display, size);
+    TestWindow *window = makeWindow();
+    addToWindow(scrollView, window);
+    layoutNow(display);
+
+    // The scroll view shows 300 points; hit views cover 100 more above and
+    // below.
+    auto assertHitViewsNear = [&](CGFloat top) {
+        XCTAssertGreaterThan(display.hitViews.count, 0u);
+        XCTAssertLessThan(display.hitViews.count, 30u);
+
+        for (ATRHitView *hitView in display.hitViews) {
+            XCTAssertFalse(hitView.hidden);
+            XCTAssertTrue(CGRectIntersectsRect(hitView.frame, CGRectMake(0, top - 100, 320, 500)));
+        }
+    };
+    auto scrollTo = [&](CGFloat y) {
+#if TARGET_OS_OSX
+        [scrollView.contentView scrollToPoint:NSMakePoint(0, y)];
+        [scrollView reflectScrolledClipView:scrollView.contentView];
+#else
+        scrollView.contentOffset = CGPointMake(0, y);
+#endif
+    };
+    auto tapViews = [&] {
+        NSUInteger count = 0;
+
+        for (ATRHitView *hitView in display.hitViews) {
+            count += hitView.bindings.firstObject.gesture.kind == ATRGestureKindTap ? 1 : 0;
+        }
+
+        return count;
+    };
+
+    assertHitViewsNear(0);
+    NSUInteger topTaps = tapViews();
+    XCTAssertEqual(factory.count, topTaps);
+
+    // No set is visible in both places, so every tap hit view from the top
+    // is reused and only the extra ones are created.
+    scrollTo(1000);
+    assertHitViewsNear(1000);
+    NSUInteger scrolledTaps = tapViews();
+    XCTAssertEqual(factory.count, MAX(topTaps, scrolledTaps));
+
+    scrollTo(0);
+    assertHitViewsNear(0);
+    XCTAssertEqual(factory.count, MAX(topTaps, scrolledTaps));
+    // Pooled hit views stay as hidden subviews instead of being recreated.
+    NSUInteger subviewHitViews = 0;
+
+    for (ATRPlatformView *subview in display.subviews) {
+        subviewHitViews += [subview isKindOfClass:ATRHitView.class] ? 1 : 0;
+    }
+
+    XCTAssertEqual(display.reusableHitViewCount + display.hitViews.count, subviewHitViews);
+    XCTAssertGreaterThan(display.reusableHitViewCount, 0u);
+
+    scrollTo(1000);
+
+    __block uint32_t reported = UINT32_MAX;
+    display.interactionHandler = ^(uint32_t interaction, CGPoint location) {
+        reported = interaction;
+    };
+
+    for (ATRHitView *hitView in display.hitViews) {
+        NSArray<NSNumber *> *expected = [display.textLayout interactionsInSet:hitView.interactionSet];
+        XCTAssertEqual(hitView.bindings.count, expected.count);
+        [hitView.bindings.firstObject triggerAtLocation:CGPointZero];
+        XCTAssertEqual(reported, expected.firstObject.unsignedIntValue);
+    }
+
+    display.viewportRenderingEnabled = NO;
+    layoutNow(display);
+    XCTAssertEqual(display.hitViews.count, 60u);
+}
+
 @end

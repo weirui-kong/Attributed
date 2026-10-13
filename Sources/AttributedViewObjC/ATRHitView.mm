@@ -91,6 +91,20 @@ CGRect rectValue(NSValue *value) {
     }
 }
 
+- (BOOL)isRecognizing {
+    for (ATRGestureBinding *binding in _bindings) {
+#if TARGET_OS_OSX
+        if (binding.recognizer.state != NSGestureRecognizerStatePossible) {
+#else
+        if (binding.recognizer.state != UIGestureRecognizerStatePossible) {
+#endif
+            return YES;
+        }
+    }
+
+    return NO;
+}
+
 - (void)triggerInteraction:(uint32_t)interaction atLocation:(CGPoint)location {
     CGPoint inSuperview = self.superview ? [self convertPoint:location toView:self.superview] : location;
     [_delegate hitView:self didTriggerInteraction:interaction atLocation:inSuperview];

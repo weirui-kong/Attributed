@@ -38,6 +38,15 @@
                                truncationToken:(nullable NSString *)truncationToken
                         attachmentContentSizes:(nullable NSDictionary<NSNumber *, NSValue *> *)attachmentContentSizes;
 
+// Like the above, reusing the lines of `previousLayout`, a layout of this
+// document, for paragraphs whose attachment content sizes did not change.
+// Applies only without line or height limits and when the other inputs are
+// equal; otherwise it lays out everything. Ignored for another document.
+- (nonnull ATRTextLayout *)layoutWithContainer:(ATRTextContainer)container
+                               truncationToken:(nullable NSString *)truncationToken
+                        attachmentContentSizes:(nullable NSDictionary<NSNumber *, NSValue *> *)attachmentContentSizes
+                                previousLayout:(nullable ATRTextLayout *)previousLayout;
+
 - (ATRAttachmentDescriptor)attachmentDescriptorAtIndex:(NSUInteger)index;
 
 // Paragraphs joined by newlines, with attachments replaced by their

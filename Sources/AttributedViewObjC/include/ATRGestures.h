@@ -18,7 +18,9 @@ typedef void (^ATRGestureHandler)(uint32_t interaction, CGPoint location);
 @interface ATRGestureBinding : NSObject
 
 @property (nonatomic, readonly) ATRGesture gesture;
-@property (nonatomic, readonly) uint32_t interaction;
+// Changes when the hit view hosting the binding is reused for another
+// interaction set with the same gestures.
+@property (nonatomic) uint32_t interaction;
 @property (nonatomic, readonly, nonnull) ATRPlatformGestureRecognizer *recognizer;
 
 - (nonnull instancetype)initWithGesture:(ATRGesture)gesture

@@ -11,7 +11,6 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         willConnectTo session: UISceneSession,
         options connectionOptions: UIScene.ConnectionOptions
     ) {
-        NSLog("PROBE willConnect %@", String(describing: type(of: scene)))
         guard let windowScene = scene as? UIWindowScene else {
             return
         }
@@ -22,6 +21,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.rootViewController = navigationController
         window.makeKeyAndVisible()
         self.window = window
+        FPSMonitor.install(in: window)
 
         // `-stressSeconds N` runs the stress page for N seconds and returns
         // home, so memory can be measured after a reproducible run.
@@ -32,6 +32,14 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             let stress = StressViewController()
             stress.autoRunSeconds = seconds
             navigationController.pushViewController(stress, animated: false)
+        }
+
+        // `-benchmark 3,1,2,1` opens the performance page and runs the given
+        // segment indexes for size, script, style, and mode.
+        if let index = arguments.firstIndex(of: "-benchmark"), index + 1 < arguments.count {
+            let benchmark = BenchmarkViewController()
+            benchmark.autoRun = arguments[index + 1].split(separator: ",").compactMap { Int($0) }
+            navigationController.pushViewController(benchmark, animated: false)
         }
     }
 }

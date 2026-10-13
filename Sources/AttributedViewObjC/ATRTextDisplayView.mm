@@ -41,6 +41,8 @@ CGImageRef copyCGImage(ATRPlatformImage *image) CF_RETURNS_RETAINED {
 #endif
 }
 
+NSString *const kDefaultTruncationToken = @"\u2026";
+
 CGSize ceilSize(CGSize size) {
     return CGSizeMake(std::ceil(size.width), std::ceil(size.height));
 }
@@ -56,6 +58,9 @@ CGSize ceilSize(CGSize size) {
 @implementation ATRTextDisplayView {
     ATRTextLayout *_textLayout;
     ATRTextLayout *_measureLayout;
+    // Supplied with the document; kept only until it is installed or an
+    // input changes, so a large stale layout is never held.
+    ATRTextLayout *_preparedLayout;
     BOOL _layoutValid;
     CGSize _reportedSize;
     // Loaded sizes of adaptive AsyncImages, keyed by attachment ID.
@@ -113,7 +118,18 @@ CGSize ceilSize(CGSize size) {
 #pragma mark - Configuration
 
 - (void)setDocument:(ATRDocument *)document {
+    [self setDocument:document layout:nil];
+}
+
+- (void)setDocument:(ATRDocument *)document layout:(ATRTextLayout *)layout {
+    ATRTextLayout *prepared = layout.document == document ? layout : nil;
+
     if (_document == document) {
+        if (prepared) {
+            _preparedLayout = prepared;
+            [self setNeedsLayoutPass];
+        }
+
         return;
     }
 
@@ -122,6 +138,7 @@ CGSize ceilSize(CGSize size) {
     [_images removeAllObjects];
     [_contentSizes removeAllObjects];
     [self invalidateLayout];
+    _preparedLayout = prepared;
 }
 
 - (void)setMaximumNumberOfLines:(NSUInteger)maximumNumberOfLines {
@@ -232,16 +249,54 @@ CGSize ceilSize(CGSize size) {
     return _layoutValid ? _textLayout : nil;
 }
 
-- (ATRTextLayout *)layoutForWidth:(CGFloat)width {
-    ATRTextContainer container = {
+- (ATRTextContainer)containerForWidth:(CGFloat)width {
+    return {
         width,
         INFINITY,
         static_cast<uint32_t>(MIN(_maximumNumberOfLines, (NSUInteger)UINT32_MAX)),
         _lineHeightMode,
     };
-    return [_document layoutWithContainer:container
+}
+
+- (ATRTextLayout *)layoutForWidth:(CGFloat)width {
+    // The current layout, even if invalidated, lets an image arriving
+    // relayout only its own paragraph.
+    return [_document layoutWithContainer:[self containerForWidth:width]
                           truncationToken:_truncationToken
-                   attachmentContentSizes:_contentSizes];
+                   attachmentContentSizes:_contentSizes
+                           previousLayout:_textLayout];
+}
+
+// Whether `layout` is what layoutForWidth: would produce right now.
+- (BOOL)layout:(ATRTextLayout *)layout matchesWidth:(CGFloat)width {
+    if (!layout || layout.document != _document) {
+        return NO;
+    }
+
+    ATRTextContainer expected = [self containerForWidth:width];
+    ATRTextContainer container = layout.container;
+    NSString *token = layout.truncationToken ?: kDefaultTruncationToken;
+
+    return container.width == expected.width && container.maxHeight == expected.maxHeight
+        && container.maximumNumberOfLines == expected.maximumNumberOfLines
+        && container.lineHeightMode == expected.lineHeightMode
+        && [token isEqualToString:_truncationToken ?: kDefaultTruncationToken]
+        && [layout.attachmentContentSizes isEqualToDictionary:_contentSizes];
+}
+
+// A layout already at hand for `width`, without laying out.
+- (ATRTextLayout *)existingLayoutForWidth:(CGFloat)width {
+    if (_layoutValid && _textLayout.container.width == width) {
+        return _textLayout;
+    }
+
+    for (ATRTextLayout *candidate in @[ _preparedLayout ?: NSNull.null, _measureLayout ?: NSNull.null ]) {
+        if (candidate != (id)NSNull.null && [self layout:candidate matchesWidth:width]) {
+            return candidate;
+        }
+    }
+
+    return nil;
 }
 
 - (CGSize)sizeThatFitsWidth:(CGFloat)width {
@@ -249,14 +304,11 @@ CGSize ceilSize(CGSize size) {
         return CGSizeZero;
     }
 
-    if (_layoutValid && _textLayout.container.width == width) {
-        return ceilSize(_textLayout.size);
+    if (ATRTextLayout *existing = [self existingLayoutForWidth:width]) {
+        return ceilSize(existing.size);
     }
 
-    if (!_measureLayout || _measureLayout.container.width != width) {
-        _measureLayout = [self layoutForWidth:width];
-    }
-
+    _measureLayout = [self layoutForWidth:width];
     return ceilSize(_measureLayout.size);
 }
 
@@ -277,6 +329,7 @@ CGSize ceilSize(CGSize size) {
 - (void)invalidateLayout {
     _layoutValid = NO;
     _measureLayout = nil;
+    _preparedLayout = nil;
     [self notifyContentSizeChange];
     [self setNeedsLayoutPass];
 }
@@ -331,29 +384,49 @@ CGSize ceilSize(CGSize size) {
     }
 
     if (!_layoutValid || _textLayout.container.width != width) {
-        _textLayout = [self layoutForWidth:width];
-        _layoutValid = YES;
-        _snapshot = nil;
-        [_tiles invalidateContent];
-        [_hitViews updateWithLayout:_textLayout];
-
-        CGSize size = ceilSize(_textLayout.size);
-
-        if (!CGSizeEqualToSize(size, _reportedSize)) {
-            _reportedSize = size;
-            [self notifyContentSizeChange];
-        }
+        // Applying a layout is always synchronous, so the view never shows
+        // or reports a layout for other inputs. Laying out ahead of time
+        // belongs to the caller, through setDocument:layout:.
+        ATRTextLayout *existing = [self existingLayoutForWidth:width];
+        [self installLayout:existing ?: [self layoutForWidth:width]];
     }
 
     [self updateRendering];
+}
+
+- (void)installLayout:(ATRTextLayout *)layout {
+    _textLayout = layout;
+    _preparedLayout = nil;
+    _layoutValid = YES;
+    _snapshot = nil;
+    [_tiles invalidateContent];
+    [_hitViews updateWithLayout:layout visibleRect:[self hitViewRect]];
+
+    CGSize size = ceilSize(layout.size);
+
+    if (!CGSizeEqualToSize(size, _reportedSize)) {
+        _reportedSize = size;
+        [self notifyContentSizeChange];
+    }
 }
 
 - (void)rebuildHitViews {
     [_hitViews removeAll];
 
     if (_layoutValid) {
-        [_hitViews updateWithLayout:_textLayout];
+        [_hitViews updateWithLayout:_textLayout visibleRect:[self hitViewRect]];
     }
+}
+
+// Where hit views are kept: everywhere without viewport rendering, else the
+// visible region plus one tile above and below, like drawn tiles.
+- (CGRect)hitViewRect {
+    if (!_viewportRenderingEnabled) {
+        return CGRectInfinite;
+    }
+
+    CGRect visible = [_scrollObserver visibleRegionOfView:self];
+    return CGRectIsNull(visible) ? CGRectNull : CGRectInset(visible, 0, -_tiles.tileHeight);
 }
 
 #pragma mark - Rendering
@@ -392,6 +465,8 @@ CGSize ceilSize(CGSize size) {
     ATRSnapshotProvider snapshot = ^ATRRenderSnapshot * {
         return [weakSelf currentSnapshot];
     };
+
+    [_hitViews updateVisibleRect:[self hitViewRect]];
 
     if (_viewportRenderingEnabled) {
         [_tiles renderTilesInBounds:self.bounds
@@ -461,6 +536,10 @@ CGSize ceilSize(CGSize size) {
 
 - (NSArray<ATRHitView *> *)hitViews {
     return _hitViews.hitViews;
+}
+
+- (NSUInteger)reusableHitViewCount {
+    return _hitViews.reusableHitViewCount;
 }
 
 - (void)hitView:(ATRHitView *)hitView didTriggerInteraction:(uint32_t)interaction atLocation:(CGPoint)location {

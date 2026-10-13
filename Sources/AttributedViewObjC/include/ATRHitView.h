@@ -21,7 +21,8 @@
 // touches.
 @interface ATRHitView : ATRPlatformView
 
-@property (nonatomic, readonly) uint32_t interactionSet;
+// Changes when the hit view is reused for another set with the same gestures.
+@property (nonatomic) uint32_t interactionSet;
 @property (nonatomic, readonly, nonnull) NSArray<ATRGestureBinding *> *bindings;
 @property (nonatomic, weak, nullable) id<ATRHitViewDelegate> delegate;
 
@@ -35,6 +36,10 @@
 
 // Replaces the installed bindings.
 - (void)installBindings:(nonnull NSArray<ATRGestureBinding *> *)bindings;
+
+// Whether a recognizer is past its possible state, so the hit view must not
+// be moved or reused yet.
+@property (nonatomic, readonly, getter=isRecognizing) BOOL recognizing;
 
 // Reports `interaction` to the delegate; `location` is in this view's
 // coordinates.

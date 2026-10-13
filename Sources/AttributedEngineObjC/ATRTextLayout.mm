@@ -26,13 +26,17 @@ CGRect makeRect(const atr::Rect &rect) {
 
 - (instancetype)initWithLayout:(std::shared_ptr<const atr::Layout>)layout
                       document:(ATRDocument *)document
-                     container:(ATRTextContainer)container {
+                     container:(ATRTextContainer)container
+               truncationToken:(NSString *)truncationToken
+        attachmentContentSizes:(NSDictionary<NSNumber *, NSValue *> *)attachmentContentSizes {
     self = [super init];
 
     if (self) {
         _layout = std::move(layout);
         _document = document;
         _container = container;
+        _truncationToken = [truncationToken copy];
+        _attachmentContentSizes = [attachmentContentSizes copy] ?: @{};
     }
 
     return self;

@@ -86,3 +86,37 @@ public extension Attributed.IR.LoweredText {
         document.layout(in: container)
     }
 }
+
+public extension Attributed {
+// Text lowered and laid out ahead of display, for example on a background
+// queue for a list cell, then shown with `TextView.setText(_:)` on the main
+// thread. Immutable. Values attached with `onTap(value:)` or
+// `onLongPress(value:)` travel with it and are later delivered on the main
+// thread, so they must be safe to use there.
+struct PreparedText: @unchecked Sendable {
+    public let text: AttributedText
+    public let lowered: IR.LoweredText
+    public let layout: TextLayout
+
+    // `lowered` must come from `text`, and `layout` from `lowered`.
+    public init(text: AttributedText, lowered: IR.LoweredText, layout: TextLayout) {
+        precondition(layout.engine.document === lowered.document.engine, "The layout belongs to other text.")
+        self.text = text
+        self.lowered = lowered
+        self.layout = layout
+    }
+
+    public var size: CGSize {
+        layout.size
+    }
+}
+}
+
+public extension Attributed.AttributedText {
+    // Safe to call on any thread. `.defer` image loaders are not run; the
+    // text view runs them after it shows the text.
+    func prepare(in container: Attributed.TextContainer) -> Attributed.PreparedText {
+        let lowered = lower()
+        return Attributed.PreparedText(text: self, lowered: lowered, layout: lowered.layout(in: container))
+    }
+}

@@ -50,10 +50,13 @@ final class TextView: PlatformView {
     // Identifies the current text so deferred image loads for replaced text
     // are dropped.
     private var textGeneration = 0
+    private var isSettingPreparedText = false
 
     public var text: AttributedText? {
         didSet {
-            display(text?.lower())
+            if !isSettingPreparedText {
+                display(text?.lower(), layout: nil)
+            }
         }
     }
 
@@ -85,7 +88,11 @@ final class TextView: PlatformView {
         didSet { display.appliesGradientToColorGlyphs = appliesGradientToEmoji }
     }
 
-    // Off by default. When on, bitmaps are drawn on a background queue.
+    // Off by default. When on, bitmaps, including decoding their images,
+    // are drawn on a background queue and appear when finished. Fast
+    // scrolling can then briefly show blank areas: a tile scrolled into view
+    // stays empty until its bitmap is ready. Keep it off unless main-thread
+    // drawing is the bottleneck.
     public var rendersAsynchronously = false {
         didSet { display.rendersAsynchronously = rendersAsynchronously }
     }
@@ -105,7 +112,17 @@ final class TextView: PlatformView {
     public convenience init(_ text: AttributedText) {
         self.init(frame: .zero)
         self.text = text
-        display(text.lower())
+        display(text.lower(), layout: nil)
+    }
+
+    // Shows text prepared ahead of time. Its layout is used while it matches
+    // this view's width, maximum number of lines, truncation token, and line
+    // height mode; otherwise the view lays out again.
+    public func setText(_ prepared: PreparedText) {
+        isSettingPreparedText = true
+        text = prepared.text
+        isSettingPreparedText = false
+        display(prepared.lowered, layout: prepared.layout)
     }
 
     @available(*, unavailable)
@@ -164,10 +181,10 @@ final class TextView: PlatformView {
         #endif
     }
 
-    private func display(_ lowered: IR.LoweredText?) {
+    private func display(_ lowered: IR.LoweredText?, layout: TextLayout?) {
         self.lowered = lowered
         textGeneration += 1
-        display.document = lowered?.document.engine
+        display.setDocument(lowered?.document.engine, layout: layout?.engine)
 
         #if canImport(UIKit)
         accessibilityLabel = lowered?.document.engine.plainText

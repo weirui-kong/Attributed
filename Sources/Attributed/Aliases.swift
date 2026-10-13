@@ -30,6 +30,7 @@ public typealias ATRGradientPoint = AttributedCore.Attributed.GradientPoint
 public typealias ATRGradientScope = AttributedCore.Attributed.GradientScope
 public typealias ATRTextContainer = AttributedCore.Attributed.TextContainer
 public typealias ATRTextLayout = AttributedCore.Attributed.TextLayout
+public typealias ATRPreparedText = AttributedCore.Attributed.PreparedText
 public typealias ATRLineHeightMode = AttributedCore.Attributed.LineHeightMode
 public typealias ATRTextView = Attributed.TextView
 public typealias ATRTextViewDelegate = Attributed.TextViewDelegate

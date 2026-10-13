@@ -109,10 +109,23 @@ std::optional<uint32_t> neighborTextStyle(const ResolvedParagraph &paragraph, si
 } // namespace
 
 Typesetter::Typesetter(const LayoutContext &context)
-    : context_(context), paragraphs_(context.resolved.paragraphs.size()) {}
+    : context_(context), paragraphs_(context.resolved.paragraphs.size()) {
+    for (const ResolvedParagraph &paragraph : context.resolved.paragraphs) {
+        for (size_t index = 0; index < paragraph.runs.size(); ++index) {
+            if (const auto &attachment = paragraph.runs[index].attachment) {
+                attachmentRuns_[*attachment] = {paragraph.runs[index].style, neighborTextStyle(paragraph, index)};
+            }
+        }
+    }
+}
 
 const AttachmentMetrics &Typesetter::attachmentMetrics(uint32_t attachment) const {
-    return attachmentMetrics_.at(attachment);
+    if (auto found = attachmentMetrics_.find(attachment); found != attachmentMetrics_.end()) {
+        return found->second;
+    }
+
+    const AttachmentRun &run = attachmentRuns_.at(attachment);
+    return attachmentMetrics_[attachment] = measure(attachment, run.style, run.neighborStyle);
 }
 
 CFRef<CFMutableDictionaryRef> Typesetter::attributes(uint32_t styleIndex) const {
@@ -162,10 +175,14 @@ ParagraphText &Typesetter::paragraph(uint32_t index) {
         auto runAttributes = attributes(run.style);
 
         if (run.attachment) {
-            addAttachment(runAttributes.get(), *run.attachment, run.style, neighborTextStyle(paragraph, runIndex));
+            addAttachment(runAttributes.get(), *run.attachment);
         }
 
         CFAttributedStringSetAttributes(string, CFRangeMake(run.location, run.length), runAttributes.get(), true);
+
+        if (!run.attachment) {
+            assignFallbackFonts(string, characters.get(), paragraph.text, run);
+        }
     }
 
     CTWritingDirection direction = paragraph.style.direction == WritingDirection::RightToLeft
@@ -189,12 +206,94 @@ ParagraphText &Typesetter::paragraph(uint32_t index) {
     return text;
 }
 
-void Typesetter::addAttachment(
-    CFMutableDictionaryRef attributes,
+// Gives characters the run's font cannot draw the shared fallback font
+// CoreText would pick, a whole composed character sequence at a time.
+void Typesetter::assignFallbackFonts(
+    CFMutableAttributedStringRef string,
+    CFStringRef characters,
+    const std::u16string &text,
+    const Run &run
+) {
+    int32_t fontIndex = context_.resolved.styles[run.style].font;
+    CTFontRef base = context_.fonts.font(fontIndex);
+    const auto *units = reinterpret_cast<const UniChar *>(text.data()) + run.location;
+    std::vector<CGGlyph> glyphs(run.length);
+
+    if (CTFontGetGlyphsForCharacters(base, units, glyphs.data(), static_cast<CFIndex>(run.length))) {
+        return;
+    }
+
+    const CFIndex runEnd = run.location + run.length;
+    auto covered = [&](CTFontRef font, CFRange sequence) {
+        CGGlyph sequenceGlyphs[16];
+        std::vector<CGGlyph> heap;
+        CGGlyph *buffer = sequence.length <= 16 ? sequenceGlyphs : (heap.resize(sequence.length), heap.data());
+        return CTFontGetGlyphsForCharacters(
+            font,
+            units + (sequence.location - run.location),
+            buffer,
+            sequence.length
+        );
+    };
+    auto sequenceAt = [&](CFIndex index) {
+        CFRange sequence = CFStringGetRangeOfComposedCharactersAtIndex(characters, index);
+        // Keep sequences inside the run; styles may split a sequence.
+        CFIndex start = std::max<CFIndex>(sequence.location, run.location);
+        CFIndex end = std::min<CFIndex>(sequence.location + sequence.length, runEnd);
+        return CFRangeMake(start, end - start);
+    };
+
+    CFIndex index = run.location;
+
+    while (index < runEnd) {
+        if (glyphs[index - run.location] != 0) {
+            index += 1;
+            continue;
+        }
+
+        // The uncovered stretch, widened to whole sequences.
+        CFRange first = sequenceAt(index);
+        CFIndex start = first.location;
+        CFIndex end = first.location + first.length;
+
+        while (end < runEnd && glyphs[end - run.location] == 0) {
+            CFRange next = sequenceAt(end);
+            end = next.location + next.length;
+        }
+
+        // Split the stretch where one fallback stops covering it.
+        while (start < end) {
+            CTFontRef fallback = context_.fonts.fallbacks->fallback(
+                fontIndex,
+                base,
+                characters,
+                CFRangeMake(start, end - start)
+            );
+            CFIndex stop = start;
+
+            do {
+                CFRange sequence = sequenceAt(stop);
+
+                if (stop > start && !covered(fallback, sequence)) {
+                    break;
+                }
+
+                stop = sequence.location + sequence.length;
+            } while (stop < end);
+
+            CFAttributedStringSetAttribute(string, CFRangeMake(start, stop - start), kCTFontAttributeName, fallback);
+            start = stop;
+        }
+
+        index = end;
+    }
+}
+
+AttachmentMetrics Typesetter::measure(
     uint32_t attachment,
     uint32_t styleIndex,
     std::optional<uint32_t> neighborStyle
-) {
+) const {
     const ResolvedTextStyle &style = context_.resolved.styles[styleIndex];
     const AttachmentDescriptor &descriptor = context_.document.attachments()[attachment];
     std::optional<std::pair<double, double>> contentSize;
@@ -223,7 +322,11 @@ void Typesetter::addAttachment(
         metrics = measureAttachment(descriptor, contentSize, context_.fonts.font(style.font), context_.container.width);
     }
 
-    attachmentMetrics_[attachment] = metrics;
+    return metrics;
+}
+
+void Typesetter::addAttachment(CFMutableDictionaryRef attributes, uint32_t attachment) {
+    const AttachmentMetrics &metrics = attachmentMetrics(attachment);
 
     CTRunDelegateCallbacks callbacks = {};
     callbacks.version = kCTRunDelegateVersion1;

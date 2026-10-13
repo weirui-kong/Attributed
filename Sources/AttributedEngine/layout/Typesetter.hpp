@@ -28,19 +28,30 @@ public:
 
     ParagraphText &paragraph(uint32_t index);
     CFRef<CFMutableDictionaryRef> attributes(uint32_t styleIndex) const;
+    // Measured on first use, so attachments in paragraphs reused from a
+    // previous layout, which are never typeset again, still have metrics.
     const AttachmentMetrics &attachmentMetrics(uint32_t attachment) const;
 
 private:
+    struct AttachmentRun {
+        uint32_t style;
+        std::optional<uint32_t> neighborStyle;
+    };
+
     const LayoutContext &context_;
     std::vector<ParagraphText> paragraphs_;
-    std::unordered_map<uint32_t, AttachmentMetrics> attachmentMetrics_;
+    std::unordered_map<uint32_t, AttachmentRun> attachmentRuns_;
+    mutable std::unordered_map<uint32_t, AttachmentMetrics> attachmentMetrics_;
 
-    void addAttachment(
-        CFMutableDictionaryRef attributes,
-        uint32_t attachment,
-        uint32_t styleIndex,
-        std::optional<uint32_t> neighborStyle
+    AttachmentMetrics measure(uint32_t attachment, uint32_t styleIndex, std::optional<uint32_t> neighborStyle) const;
+
+    void assignFallbackFonts(
+        CFMutableAttributedStringRef string,
+        CFStringRef characters,
+        const std::u16string &text,
+        const Run &run
     );
+    void addAttachment(CFMutableDictionaryRef attributes, uint32_t attachment);
 };
 
 } // namespace atr::layout

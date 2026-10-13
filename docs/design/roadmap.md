@@ -50,10 +50,12 @@ Design: [layout-and-rendering.md](layout-and-rendering.md).
 - [x] Gestures through hit views: tap (count) and long press (duration), using a factory registry, a policy, bindings, and delegates.
 - [x] Delegate events with attached values, text ranges, text, location, and rects.
 - [x] Basic accessibility label.
+- [x] Layout ahead of time: prepared text from any thread, applied synchronously by the view.
 - [ ] Relayout on Dynamic Type changes (needs a font table that re-resolves text styles).
 - [ ] Richer accessibility (per-link elements).
 - [ ] SwiftUI bridge.
 - [x] New UIKit demo app (`Demo/AttributedDemo`): home list and a feature showcase; LookinServer for view debugging.
+- [x] Demo Performance page and FPS monitor. The page runs 1K–1M characters, English or mixed scripts, plain, random, or complex styles, sync or async, and times each stage. Launch argument `-benchmark size,script,style,mode`.
 - [ ] Exclusion paths and lazy layout (from P2).
 
 Out of scope for now: editing, input methods, and rich selection.

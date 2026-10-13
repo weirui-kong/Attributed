@@ -20,9 +20,4 @@
 @property (nonatomic, readonly) const atr::ResolvedDocument &resolvedDocument;
 @property (nonatomic, readonly) const atr::FontTable &fontTable;
 
-// `container` must describe the same limits as `engineContainer`, which may
-// also carry attachment content-size overrides.
-- (nonnull ATRTextLayout *)layoutWithEngineContainer:(const atr::Container &)engineContainer
-                                           container:(ATRTextContainer)container;
-
 @end

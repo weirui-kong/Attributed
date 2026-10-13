@@ -19,6 +19,12 @@ final class HomeViewController: UITableViewController {
             makeViewController: { ShowcaseViewController() }
         ),
         Demo(
+            title: "Performance",
+            subtitle: "Up to 1M characters in one text view, timed stage by stage",
+            symbol: "speedometer",
+            makeViewController: { BenchmarkViewController() }
+        ),
+        Demo(
             title: "Stress",
             subtitle: "Random lifecycle operations every frame",
             symbol: "bolt.horizontal.circle",

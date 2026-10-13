@@ -11,7 +11,10 @@
 
 - (nonnull instancetype)initWithLayout:(std::shared_ptr<const atr::Layout>)layout
                               document:(nonnull ATRDocument *)document
-                             container:(ATRTextContainer)container NS_DESIGNATED_INITIALIZER;
+                             container:(ATRTextContainer)container
+                       truncationToken:(nullable NSString *)truncationToken
+                attachmentContentSizes:(nullable NSDictionary<NSNumber *, NSValue *> *)attachmentContentSizes
+    NS_DESIGNATED_INITIALIZER;
 
 @property (nonatomic, readonly) const atr::Layout &engineLayout;
 

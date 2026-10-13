@@ -40,6 +40,27 @@ private final class RecordingDelegate: Attributed.TextViewDelegate {
 
 @MainActor
 final class TextViewTests: XCTestCase {
+    func testPreparedTextFromABackgroundQueueIsShownAsIs() async {
+        let prepared = await Task.detached {
+            AttributedText {
+                Paragraph {
+                    "Prepared "
+                    Text("off").onTap(value: 1)
+                    " the main thread"
+                }
+                .font(.systemFont(ofSize: 20))
+            }
+            .prepare(in: Attributed.TextContainer(width: 400))
+        }.value
+        let textView = Attributed.TextView(frame: CGRect(x: 0, y: 0, width: 400, height: 200))
+        textView.setText(prepared)
+        layoutNow(textView)
+
+        XCTAssertTrue(textView.display.textLayout === prepared.layout.engine)
+        XCTAssertEqual(textView.display.hitViews.count, 1)
+        XCTAssertNotNil(textView.text)
+    }
+
     func testDelegateReceivesValuesRangesAndLocations() {
         let url = URL(string: "https://example.com")!
         var ran = false

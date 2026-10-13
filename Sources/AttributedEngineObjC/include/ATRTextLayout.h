@@ -11,6 +11,10 @@
 
 @property (nonatomic, readonly, nonnull) ATRDocument *document;
 @property (nonatomic, readonly) ATRTextContainer container;
+// The inputs besides the container, so a view can tell whether a layout made
+// elsewhere still matches its own settings.
+@property (nonatomic, readonly, copy, nullable) NSString *truncationToken;
+@property (nonatomic, readonly, copy, nonnull) NSDictionary<NSNumber *, NSValue *> *attachmentContentSizes;
 // Used width and total height, unrounded.
 @property (nonatomic, readonly) CGSize size;
 @property (nonatomic, readonly, getter=isTruncated) BOOL truncated;

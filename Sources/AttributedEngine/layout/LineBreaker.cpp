@@ -124,6 +124,53 @@ double flush(const ResolvedParagraphStyle &style) {
 LineBreaker::LineBreaker(const LayoutContext &context, Typesetter &typesetter, Layout &layout)
     : context_(context), typesetter_(typesetter), layout_(layout) {}
 
+void LineBreaker::reuse(const Layout &previous, std::vector<bool> dirtyParagraphs) {
+    size_t paragraphCount = context_.resolved.paragraphs.size();
+    std::vector<std::pair<size_t, size_t>> lines(paragraphCount, {0, 0});
+
+    for (size_t index = 0; index < previous.lines.size(); ++index) {
+        uint32_t paragraph = previous.lines[index].paragraph;
+
+        if (paragraph >= paragraphCount) {
+            return;
+        }
+
+        if (lines[paragraph].second == 0) {
+            lines[paragraph].first = index;
+        }
+
+        lines[paragraph].second += 1;
+    }
+
+    previous_ = &previous;
+    dirty_ = std::move(dirtyParagraphs);
+    previousLines_ = std::move(lines);
+}
+
+// Copies the paragraph's lines from the previous layout, moved so the first
+// one starts where breaking it again would have put it.
+bool LineBreaker::reuseParagraph(uint32_t index, double spacingBefore) {
+    if (!previous_ || dirty_[index] || previousLines_[index].second == 0) {
+        return false;
+    }
+
+    auto [first, count] = previousLines_[index];
+    double top = layout_.lines.empty() ? 0 : cursor_ + spacingBefore;
+    double offset = top - previous_->lines[first].top;
+
+    for (size_t line = first; line < first + count; ++line) {
+        Line copy = previous_->lines[line];
+        // Runs are collected again by the annotator.
+        copy.runs.clear();
+        copy.top += offset;
+        copy.baseline += offset;
+        layout_.lines.push_back(std::move(copy));
+    }
+
+    cursor_ = layout_.lines.back().bottom();
+    return true;
+}
+
 void LineBreaker::run() {
     double spacingBefore = 0;
     const auto &paragraphs = context_.resolved.paragraphs;
@@ -133,6 +180,10 @@ void LineBreaker::run() {
 
         if (index > 0) {
             spacingBefore = paragraphs[index - 1].style.paragraphSpacing;
+        }
+
+        if (reuseParagraph(index, spacingBefore)) {
+            continue;
         }
 
         if (paragraph.text.empty()) {

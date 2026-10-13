@@ -14,6 +14,11 @@
 @interface ATRTextDisplayView : ATRPlatformView
 
 @property (nonatomic, strong, nullable) ATRDocument *document;
+// Sets the document with a layout made ahead of time, for example on a
+// background queue. The layout is used whenever it matches the view's width
+// and settings; otherwise the view lays out again. A layout of another
+// document is ignored.
+- (void)setDocument:(nullable ATRDocument *)document layout:(nullable ATRTextLayout *)layout;
 // Zero means unlimited.
 @property (nonatomic) NSUInteger maximumNumberOfLines;
 // Nil uses U+2026.
@@ -23,14 +28,16 @@
 // Off by default. When on, drawing is split into horizontal tiles of
 // `tileHeight` points, and only tiles near the visible part of the first
 // enclosing scroll view are kept; the view observes that scroll view's
-// position while it is in a window.
+// position while it is in a window. Hit views follow the same region and
+// are reused as interactive text scrolls in and out.
 @property (nonatomic, getter=isViewportRenderingEnabled) BOOL viewportRenderingEnabled;
 // 256 by default.
 @property (nonatomic) CGFloat tileHeight;
 // Off by default: color glyphs such as emoji keep their own colors.
 @property (nonatomic) BOOL appliesGradientToColorGlyphs;
 // Off by default. When on, bitmaps are drawn on a background queue and
-// installed on the main thread.
+// installed on the main thread. A tile that scrolls into view stays blank
+// until its bitmap is ready, so fast scrolling can briefly show blank areas.
 @property (nonatomic) BOOL rendersAsynchronously;
 
 // Interactive text gets one ATRHitView per interaction set; the hit views
@@ -59,7 +66,9 @@
 
 // Diagnostics.
 @property (nonatomic, readonly, nonnull) NSIndexSet *renderedTileIndexes;
+// The visible hit views, and the hidden ones waiting for reuse.
 @property (nonatomic, readonly, nonnull) NSArray<ATRHitView *> *hitViews;
+@property (nonatomic, readonly) NSUInteger reusableHitViewCount;
 @property (nonatomic, readonly, nullable) ATRPlatformView *observedScrollView;
 
 @end

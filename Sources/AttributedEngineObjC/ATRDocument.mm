@@ -156,6 +156,16 @@ std::u16string makeUTF16(NSString *string) {
 - (ATRTextLayout *)layoutWithContainer:(ATRTextContainer)container
                        truncationToken:(NSString *)truncationToken
                 attachmentContentSizes:(NSDictionary<NSNumber *, NSValue *> *)attachmentContentSizes {
+    return [self layoutWithContainer:container
+                     truncationToken:truncationToken
+              attachmentContentSizes:attachmentContentSizes
+                      previousLayout:nil];
+}
+
+- (ATRTextLayout *)layoutWithContainer:(ATRTextContainer)container
+                       truncationToken:(NSString *)truncationToken
+                attachmentContentSizes:(NSDictionary<NSNumber *, NSValue *> *)attachmentContentSizes
+                        previousLayout:(ATRTextLayout *)previousLayout {
     atr::Container engineContainer;
     engineContainer.width = container.width;
     engineContainer.maxHeight = container.maxHeight;
@@ -172,13 +182,13 @@ std::u16string makeUTF16(NSString *string) {
         engineContainer.attachmentContentSizes[key.unsignedIntValue] = {size.width, size.height};
     }
 
-    return [self layoutWithEngineContainer:engineContainer container:container];
-}
-
-- (ATRTextLayout *)layoutWithEngineContainer:(const atr::Container &)engineContainer
-                                   container:(ATRTextContainer)container {
-    auto layout = atr::computeLayout(*_document, _resolved, _fontTable, engineContainer);
-    return [[ATRTextLayout alloc] initWithLayout:std::move(layout) document:self container:container];
+    const atr::Layout *previous = previousLayout.document == self ? &previousLayout.engineLayout : nullptr;
+    auto layout = atr::computeLayout(*_document, _resolved, _fontTable, engineContainer, previous);
+    return [[ATRTextLayout alloc] initWithLayout:std::move(layout)
+                                        document:self
+                                       container:container
+                                 truncationToken:truncationToken
+                          attachmentContentSizes:attachmentContentSizes];
 }
 
 - (NSString *)plainText {
