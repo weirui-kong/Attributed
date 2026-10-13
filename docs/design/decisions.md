@@ -52,6 +52,8 @@ Newest last. Entries 1–33 are from 2026-10-13; 34 onward from 2026-10-14.
 
 39. **The package targets iOS 15.** A clean build for iOS 15 shows no availability warnings in the library, and the tests pass. No iOS 15 simulator runtime was installed, so this is compile-time compatibility, not a run on iOS 15. The demo stays at iOS 16 because it uses `OSAllocatedUnfairLock`. macOS stays at 13.
 
+40. **`Spacer` is an attachment kind, not a new op.** It reuses U+FFFC ranges, run delegates, and gesture wrapping. Without a height it follows the unsized AsyncImage placeholder rule (adjacent character, else its own font), so a gap never changes line height. With a height it is baseline-aligned like a fixed image.
+
 ## Open questions
 
 - Default line height mode: `.typographic` (chosen) or `.glyphBounds`?

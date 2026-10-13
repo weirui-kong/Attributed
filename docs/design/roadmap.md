@@ -8,6 +8,7 @@
 - [x] Nodes `Text`, `Paragraph`, and `Image` lower through `lower(into:)`.
 - [x] Interactions: the `.link(url)` text modifier and generic `.onTap`.
 - [x] Images: `ImageSource.resolved` / `.defer`, required sizes, two pipelines.
+- [x] `Spacer` node: a fixed width, with an inferred or explicit height.
 - [x] Text gradients with line, paragraph, and document lookup scopes.
 - [x] `ATR`-prefixed facade aliases.
 - [x] Foreground as one fill (color or gradient); engine-drawn underline decorations with color or gradient fills and corners.

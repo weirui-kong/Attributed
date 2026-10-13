@@ -113,6 +113,22 @@ Image(.defer { makeImage() }, size: .adaptive(maxWidth: 200))
 - Alignment: `.baseline`, `.center`, `.top`, `.bottom`, `.offset(_:)`.
 - Remote URLs, async loaders, and placeholders from v0.1 were removed.
 
+## Spacer
+
+```swift
+ATRParagraph {
+    icon
+    ATRSpacer(width: 12)                 // as tall as the adjacent text
+    "Label"
+    ATRSpacer(width: 8, height: 40)      // explicit height, on the baseline
+}
+```
+
+- `Spacer(width:height:)` (alias `ATRSpacer`) reserves `width` points in the line and draws nothing. The width is finite and non-negative.
+- Without a height (the default `nil`), it is as tall as the adjacent character: the text before it, else the text after it, else its own font. It sits on that character's baseline, so it never makes the line taller. This is the same rule as an unsized AsyncImage placeholder.
+- With a height, it stands on the baseline like a fixed image, and may make the line taller.
+- It lowers to an attachment of the spacer kind. In text ranges it counts as one U+FFFC, it has no image source (`imageSource(for:)` returns nil), and it can be wrapped by `onTap` / `onLongPress` like any node.
+
 ## Gradients
 
 ```swift

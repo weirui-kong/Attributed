@@ -304,20 +304,38 @@ AttachmentMetrics Typesetter::measure(
     }
 
     AttachmentMetrics metrics;
-    bool unsized = descriptor.pipeline == ImagePipeline::AsyncImage
+    bool unsized = descriptor.kind == AttachmentKind::Image && descriptor.pipeline == ImagePipeline::AsyncImage
         && descriptor.sizeKind == AttachmentSizeKind::Adaptive && !contentSize
         && !(descriptor.contentWidth && descriptor.contentHeight);
 
-    if (unsized) {
-        // An AsyncImage with no size yet is a zero-width placeholder as tall
-        // as the adjacent character, so the line keeps its height until the
-        // image arrives. Without adjacent text, the default font sizes it.
+    // As tall as the adjacent character and on its baseline, so the line
+    // keeps the height it would have without the attachment.
+    auto adjacentHeight = [&](CTFontRef fallback) {
         const ResolvedTextStyle *neighbor = neighborStyle ? &context_.resolved.styles[*neighborStyle] : nullptr;
-        CTFontRef font = neighbor ? context_.fonts.font(neighbor->font) : context_.fonts.defaultFont.get();
+        CTFontRef font = neighbor ? context_.fonts.font(neighbor->font) : fallback;
         double descent = CTFontGetDescent(font);
-        metrics.width = 0;
         metrics.height = CTFontGetAscent(font) + descent;
         metrics.originY = (neighbor ? neighbor->baselineOffset : 0) - descent;
+    };
+
+    if (descriptor.kind == AttachmentKind::Spacer) {
+        // Without adjacent text, a spacer takes its own font's height.
+        metrics.width = descriptor.width;
+
+        if (descriptor.inferredHeight) {
+            adjacentHeight(context_.fonts.font(style.font));
+        } else {
+            // On the baseline, like a fixed image; the run's own baseline
+            // offset is applied by line metrics.
+            metrics.height = descriptor.height;
+            metrics.originY = 0;
+        }
+    } else if (unsized) {
+        // An AsyncImage with no size yet is a zero-width placeholder until
+        // the image arrives. Without adjacent text, the default font sizes
+        // it.
+        metrics.width = 0;
+        adjacentHeight(context_.fonts.defaultFont.get());
     } else {
         metrics = measureAttachment(descriptor, contentSize, context_.fonts.font(style.font), context_.container.width);
     }

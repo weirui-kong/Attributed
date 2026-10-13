@@ -13,6 +13,7 @@ public typealias ATRAttributedText = AttributedCore.Attributed.AttributedText
 public typealias ATRText = AttributedCore.Attributed.Text
 public typealias ATRParagraph = AttributedCore.Attributed.Paragraph
 public typealias ATRImage = AttributedCore.Attributed.Image
+public typealias ATRSpacer = AttributedCore.Attributed.Spacer
 public typealias ATRImageSource = AttributedCore.Attributed.ImageSource
 public typealias ATRAttachmentID = AttributedCore.Attributed.AttachmentID
 public typealias ATRAttachmentSize = AttributedCore.Attributed.AttachmentSize

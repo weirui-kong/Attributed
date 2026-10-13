@@ -217,6 +217,8 @@ void check(atr::BuildStatus status) {
 - (uint32_t)appendAttachment:(ATRAttachmentDescriptor)descriptor
           accessibilityLabel:(NSString *)accessibilityLabel {
     atr::AttachmentDescriptor result;
+    result.kind = static_cast<atr::AttachmentKind>(descriptor.kind);
+    result.inferredHeight = descriptor.fields & ATRAttachmentFieldInferredHeight;
     result.sizeKind = static_cast<atr::AttachmentSizeKind>(descriptor.sizeKind);
     result.width = descriptor.width;
     result.height = descriptor.height;

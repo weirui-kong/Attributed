@@ -116,6 +116,11 @@ std::u16string makeUTF16(NSString *string) {
     result.alignmentKind = static_cast<ATRAttachmentAlignmentKind>(descriptor.alignmentKind);
     result.alignmentOffset = descriptor.alignmentOffset;
     result.pipeline = static_cast<ATRImagePipeline>(descriptor.pipeline);
+    result.kind = static_cast<ATRAttachmentKind>(descriptor.kind);
+
+    if (descriptor.inferredHeight) {
+        result.fields |= ATRAttachmentFieldInferredHeight;
+    }
 
     if (descriptor.contentWidth && descriptor.contentHeight) {
         result.fields |= ATRAttachmentFieldContentSize;

@@ -46,6 +46,12 @@ typedef NS_ENUM(uint8_t, ATRGradientScope) {
     ATRGradientScopeDocument,
 };
 
+// A spacer reserves room in the line and draws nothing.
+typedef NS_ENUM(uint8_t, ATRAttachmentKind) {
+    ATRAttachmentKindImage,
+    ATRAttachmentKindSpacer,
+};
+
 typedef NS_ENUM(uint8_t, ATRImagePipeline) {
     ATRImagePipelineImage,
     ATRImagePipelineAsyncImage,
@@ -146,12 +152,17 @@ typedef NS_OPTIONS(uint32_t, ATRAttachmentFields) {
     ATRAttachmentFieldMaxWidth = 1 << 0,
     ATRAttachmentFieldMaxHeight = 1 << 1,
     ATRAttachmentFieldContentSize = 1 << 2,
+    // Spacers only: the height comes from the adjacent text instead of
+    // `height`.
+    ATRAttachmentFieldInferredHeight = 1 << 3,
 };
 
 typedef struct ATRAttachmentDescriptor {
     ATRAttachmentFields fields;
+    // Zero, the image kind, by default.
+    ATRAttachmentKind kind;
     ATRAttachmentSizeKind sizeKind;
-    // Fixed size.
+    // Fixed size; a spacer's width and height.
     double width;
     double height;
     // Adaptive maxima.

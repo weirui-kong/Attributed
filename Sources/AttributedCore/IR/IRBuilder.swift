@@ -18,7 +18,7 @@ struct Builder {
     private let engine = ATRDocumentBuilder()
     private var interactions: [Attributed.Interaction] = []
     private var gestures: [Attributed.Gesture] = []
-    private var imageSources: [Attributed.ImageSource] = []
+    private var imageSources: [Attributed.ImageSource?] = []
 
     init() {}
 
@@ -70,6 +70,28 @@ struct Builder {
             accessibilityLabel: descriptor.accessibilityLabel
         )
         imageSources.append(source)
+        return Attributed.AttachmentID(rawValue: rawValue)
+    }
+
+    // Reserves `width` points in the line and draws nothing. Without a
+    // height, the spacer is as tall as the adjacent text, so it never grows
+    // the line.
+    @discardableResult
+    public mutating func spacer(width: CGFloat, height: CGFloat?) -> Attributed.AttachmentID {
+        precondition(width.isFinite && width >= 0, "A spacer needs a finite, non-negative width.")
+        precondition(height.map { $0.isFinite && $0 >= 0 } ?? true, "A spacer height must be finite and non-negative.")
+        var value = ATRAttachmentDescriptor()
+        value.kind = .spacer
+        value.width = Double(width)
+
+        if let height {
+            value.height = Double(height)
+        } else {
+            value.fields.insert(.inferredHeight)
+        }
+
+        let rawValue = engine.appendAttachment(value, accessibilityLabel: nil)
+        imageSources.append(nil)
         return Attributed.AttachmentID(rawValue: rawValue)
     }
 

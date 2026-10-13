@@ -133,7 +133,8 @@ struct LoweredText {
     public let document: Document
     package let interactions: [Attributed.Interaction]
     let gestures: [Attributed.Gesture]
-    package let imageSources: [Attributed.ImageSource]
+    // Indexed by attachment ID; nil for spacers.
+    package let imageSources: [Attributed.ImageSource?]
 
     public func interaction(for id: Attributed.InteractionID) -> Attributed.Interaction {
         interactions[Int(id.rawValue)]
@@ -143,7 +144,8 @@ struct LoweredText {
         gestures[Int(id.rawValue)]
     }
 
-    public func imageSource(for id: Attributed.AttachmentID) -> Attributed.ImageSource {
+    // Nil for a spacer.
+    public func imageSource(for id: Attributed.AttachmentID) -> Attributed.ImageSource? {
         imageSources[Int(id.rawValue)]
     }
 }

@@ -271,6 +271,23 @@ enum ShowcaseSections {
         let heart = DemoImages.symbol("heart.fill", color: .systemRed, pointSize: 16)
 
         return ShowcaseSection(title: "Mixed content", samples: [
+            ShowcaseSample(caption: "Spacers: fixed gaps, inferred or explicit height", text: ATRAttributedText {
+                ATRParagraph {
+                    ATRImage(.resolved(heart), size: .fixed(width: 16, height: 16)).alignment(.center)
+                    ATRSpacer(width: 12)
+                    ATRText("12 pt after the icon").backgroundColor(.systemTeal.withAlphaComponent(0.2))
+                }
+                .font(body)
+                .paragraphSpacing(8)
+                ATRParagraph {
+                    "Name"
+                    ATRSpacer(width: 60)
+                    "Value"
+                    ATRSpacer(width: 8, height: 40)
+                    "(a 40 pt spacer makes this line taller)"
+                }
+                .font(body)
+            }),
             ShowcaseSample(caption: "文字混排：中文、English、emoji、图片、渐变与下划线", text: ATRAttributedText {
                 ATRParagraph {
                     ATRText("Attributed").font(.systemFont(ofSize: 18, weight: .bold)).gradient(ocean)

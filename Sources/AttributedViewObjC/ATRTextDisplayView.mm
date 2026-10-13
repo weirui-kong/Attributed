@@ -216,7 +216,8 @@ CGSize ceilSize(CGSize size) {
 }
 
 - (void)setImage:(ATRPlatformImage *)image forAttachment:(uint32_t)attachment {
-    if (!_document || attachment >= _document.attachmentCount) {
+    if (!_document || attachment >= _document.attachmentCount
+        || [_document attachmentDescriptorAtIndex:attachment].kind == ATRAttachmentKindSpacer) {
         return;
     }
 

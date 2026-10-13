@@ -18,6 +18,7 @@ private typealias Paragraph = Attributed.Paragraph
 private typealias Text = Attributed.Text
 private typealias Image = Attributed.Image
 private typealias Group = Attributed.Group
+private typealias Spacer = Attributed.Spacer
 private typealias IR = Attributed.IR
 
 private struct EmptyBlock: AttributedBlock {
@@ -40,6 +41,38 @@ private struct QuoteBlock: AttributedBlock {
 }
 
 final class LoweringTests: XCTestCase {
+    func testSpacersLowerToAttachmentsWithoutImages() {
+        let lowered = AttributedText {
+            Paragraph {
+                "a"
+                Spacer(width: 12)
+                Text("b").onTap(value: 1)
+                Spacer(width: 4, height: 30)
+            }
+        }
+        .lower()
+
+        XCTAssertEqual(
+            opsDump(lowered.document),
+            """
+            base paragraph{} text{fg=c0}
+            P paragraph{} text{}
+              "a"
+              ATTACH a0 spacer width=12 height=inferred
+              SPAN i0 text{}
+                "b"
+              END
+              ATTACH a1 spacer width=4 height=30
+            /P
+            i0 = tap(1)
+            """
+        )
+        XCTAssertNil(lowered.imageSource(for: Attributed.AttachmentID(rawValue: 0)))
+        XCTAssertNil(lowered.imageSource(for: Attributed.AttachmentID(rawValue: 1)))
+        // The spacer counts as one U+FFFC before "b".
+        XCTAssertEqual(lowered.document.engine.range(forInteraction: 0), NSRange(location: 2, length: 1))
+    }
+
     func testDocumentBuilderSupportsConditionalsAndLoops() {
         let includeExtra = true
         let document = AttributedText {

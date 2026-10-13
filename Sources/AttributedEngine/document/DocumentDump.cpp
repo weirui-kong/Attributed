@@ -235,6 +235,11 @@ std::string describe(const ParagraphStyle &style) {
 }
 
 std::string describe(const AttachmentDescriptor &descriptor) {
+    if (descriptor.kind == AttachmentKind::Spacer) {
+        return "spacer width=" + formatNumber(descriptor.width) + " height="
+            + (descriptor.inferredHeight ? std::string("inferred") : formatNumber(descriptor.height));
+    }
+
     std::string result = descriptor.pipeline == ImagePipeline::Image ? "image" : "asyncImage";
 
     if (descriptor.sizeKind == AttachmentSizeKind::Fixed) {

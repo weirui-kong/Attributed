@@ -15,10 +15,52 @@ private typealias AttributedText = Attributed.AttributedText
 private typealias Paragraph = Attributed.Paragraph
 private typealias Text = Attributed.Text
 private typealias TextContainer = Attributed.TextContainer
+private typealias Spacer = Attributed.Spacer
 
 private let longText = "The quick brown fox jumps over the lazy dog and keeps running across the field."
 
 final class TextLayoutTests: XCTestCase {
+    func testSpacerReservesWidthAndKeepsTheLineHeight() {
+        let font = PlatformFont.systemFont(ofSize: 16)
+        let unbounded = TextContainer(width: .infinity)
+        func layout(@Attributed.AttributedInlineBuilder _ content: () -> [any Attributed.AttributedInline]) -> Attributed.TextLayout {
+            let inline = content()
+            return AttributedText {
+                Paragraph {
+                    for node in inline {
+                        node
+                    }
+                }
+                .font(font)
+            }
+            .lower()
+            .layout(in: unbounded)
+        }
+
+        let plain = layout { "AB" }
+        let spaced = layout {
+            "A"
+            Spacer(width: 20)
+            "B"
+        }
+        let tall = layout {
+            "A"
+            Spacer(width: 20, height: 60)
+            "B"
+        }
+        let alone = AttributedText {
+            Paragraph { Spacer(width: 30) }.font(font)
+        }
+        .lower()
+        .layout(in: unbounded)
+
+        XCTAssertEqual(spaced.size.width, plain.size.width + 20, accuracy: 0.01)
+        XCTAssertEqual(spaced.size.height, plain.size.height, accuracy: 0.01)
+        XCTAssertGreaterThan(tall.size.height, 60)
+        XCTAssertEqual(alone.size.width, 30, accuracy: 0.01)
+        XCTAssertEqual(alone.size.height, plain.size.height, accuracy: 0.01)
+    }
+
     func testLayoutMeasuresWrappedText() {
         let document = AttributedText {
             Paragraph { longText }

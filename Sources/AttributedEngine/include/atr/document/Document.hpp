@@ -16,6 +16,8 @@ namespace atr {
 enum class TextAlignment : uint8_t { Natural, Left, Center, Right, Justified };
 enum class WritingDirection : uint8_t { Natural, LeftToRight, RightToLeft };
 enum class GradientScope : uint8_t { Line, Paragraph, Document };
+// A spacer reserves room in the line and draws nothing.
+enum class AttachmentKind : uint8_t { Image, Spacer };
 enum class ImagePipeline : uint8_t { Image, AsyncImage };
 enum class AttachmentSizeKind : uint8_t { Fixed, Adaptive };
 enum class AttachmentAlignmentKind : uint8_t { Baseline, Center, Top, Bottom, Offset };
@@ -83,9 +85,14 @@ struct Gradient {
 };
 
 struct AttachmentDescriptor {
+    AttachmentKind kind = AttachmentKind::Image;
     AttachmentSizeKind sizeKind = AttachmentSizeKind::Fixed;
+    // Spacers use `width` and, unless `inferredHeight`, `height`.
     double width = 0;
     double height = 0;
+    // Spacers only: the height of the adjacent text, like an unsized
+    // AsyncImage placeholder.
+    bool inferredHeight = false;
     std::optional<double> maxWidth;
     std::optional<double> maxHeight;
     AttachmentAlignmentKind alignmentKind = AttachmentAlignmentKind::Baseline;

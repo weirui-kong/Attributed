@@ -74,7 +74,10 @@ Swift value types (`IR.TextStyle`, `IR.ParagraphStyle`, `IR.Span`, `IR.Attachmen
 
 ## Attachment descriptor
 
-Fixed `width`/`height`, or adaptive `maxWidth`/`maxHeight` (at least one); an alignment kind plus offset; a `pipeline` (`Image` / `AsyncImage`, chosen from `ImageSource`); a `contentSize` known only for the Image pipeline; and an optional accessibility label.
+A `kind`: `Image` (the default) or `Spacer`.
+
+- Images: fixed `width`/`height`, or adaptive `maxWidth`/`maxHeight` (at least one); an alignment kind plus offset; a `pipeline` (`Image` / `AsyncImage`, chosen from `ImageSource`); a `contentSize` known only for the Image pipeline; and an optional accessibility label.
+- Spacers: `width`, and either `height` or the `InferredHeight` field, which takes the adjacent text's height. They draw nothing and have no image source on the Swift side.
 
 ## Dump format
 
@@ -100,6 +103,7 @@ c0 = <platform description>
 
 - Text is quoted. `\` `"` `\n` `\r` `\t` are escaped, and other control characters print as `\u{X}`. Unpaired surrogates become U+FFFD.
 - Numbers use the shortest round-trip form; integral values have no fraction.
+- Spacers print as `ATTACH a<n> spacer width=<w> height=<h|inferred>`.
 - Interactions print after gradients as `i<n> = tap(<count>)` or `i<n> = longPress(<seconds>)`.
 - Fills print as `c<n>` (color) or `g<n>` (gradient), for example `fg=g0` or `underlineFill=c2`. Underlines print as `underline=<lines>,<pattern>[,<thickness>][,radius=<r>|,capsule]`, for example `underline=single,dash,2` or `underline=single,dot,capsule`.
 - Everything before `---` is stable and can be asserted. Font and color descriptions come after it because platform descriptions vary across OS versions.

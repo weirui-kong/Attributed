@@ -206,6 +206,8 @@ final class TextView: PlatformView {
                 display.setImage(image, forAttachment: id.rawValue)
             case let .defer(load):
                 deferred.append((id, load))
+            case nil:
+                break
             }
         }
 
