@@ -53,9 +53,27 @@ Newest last. Entries 1–33 are from 2026-10-13; 34 onward from 2026-10-14.
 39. **The package targets iOS 15.** A clean build for iOS 15 shows no availability warnings in the library, and the tests pass. No iOS 15 simulator runtime was installed, so this is compile-time compatibility, not a run on iOS 15. The demo stays at iOS 16 because it uses `OSAllocatedUnfairLock`. macOS stays at 13.
 
 40. **`Spacer` is an attachment kind, not a new op.** It reuses U+FFFC ranges, run delegates, and gesture wrapping. Without a height it follows the unsized AsyncImage placeholder rule (adjacent character, else its own font), so a gap never changes line height. With a height it is baseline-aligned like a fixed image.
+41. **Public text geometry comes before selection.** `TextLayout` gets public queries: lines, point to offset, offset to caret, range to selection rects, and granularity ranges. Callers need them for their own highlights and anchors. Selection will be built only on them, which proves they are sufficient.
+    - Offsets are document-global UTF-16 (the `InteractionEvent.range` space). Coordinates are layout space, which equals the view's bounds.
+    - Truncated text is outside `visibleRange` and has no rects. The truncation token maps to no source offset.
+    - U+FFFC attachments and spacers are one `character` unit.
+    - A point in a line or paragraph gap has no character index and snaps to the nearest line for `closestPosition`.
+    - Selection rects use typographic line height. Bidi can split one line into several rects.
+    - Lines are read by index, not copied as an array.
+    - Design: [text-geometry.md](text-geometry.md).
+42. **Text geometry is implemented as `atr::TextGeometry`**, a stateless view over the resolved document and the layout.
+    - Paragraphs record their global start.
+    - Truncation token runs are marked with a private attribute, and a truncated line's range is the text it shows.
+    - Carets and selection rects are clamped to a finite container width, because whitespace at a soft break hangs past it.
+    - Word and sentence boundaries use the current locale.
+    - `LineMetrics` exposes no ink extent for now.
+43. **Test coverage was widened to 235 tests** (macOS and the iOS Simulator). The new tests cover the resolver, the document builder, layout edge cases, incremental relayout, rendering, fallback fonts, DSL lowering, the display view, and the Swift text view. They found two bugs, both fixed:
+    - **Empty truncation token.** With an empty token, CoreText keeps one run whose string range still covers the cut text, so a truncated line reported every character as visible. A truncated line's visible end now comes from its last glyph's character, widened to the whole composed sequence.
+    - **Truncation token setter.** `ATRTextDisplayView` treats a nil token as U+2026 when matching layouts, but switching between nil and U+2026 still threw the layout away. The setter now compares the normalized tokens.
 
 ## Open questions
 
+- Text selection on iOS: a read-only `UITextInput` with `UITextInteraction(.nonEditable)` (preferred), or custom handles and menus? See [text-geometry.md](text-geometry.md).
 - Default line height mode: `.typographic` (chosen) or `.glyphBounds`?
 - Gradient defaults chosen without confirmation:
   - The default scope is `.paragraph`.

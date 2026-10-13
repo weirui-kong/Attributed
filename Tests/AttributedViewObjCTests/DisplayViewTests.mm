@@ -588,4 +588,226 @@ TestScrollView *makeScrollView(ATRPlatformView *content, CGSize contentSize) {
     XCTAssertEqual(display.hitViews.count, 60u);
 }
 
+- (ATRDocument *)plainDocument:(NSString *)text {
+    ATRDocumentBuilder *builder = [[ATRDocumentBuilder alloc] init];
+    int32_t font = [builder registerFont:[ATRPlatformFont systemFontOfSize:20]];
+    [builder beginParagraph:{} textStyle:fontStyle(font)];
+    [builder appendText:text];
+    [builder endParagraph];
+    return [builder finish];
+}
+
+- (void)testSettingsRelayoutOnlyWhenTheyChange {
+    NSString *text = @"The quick brown fox jumps over the lazy dog and keeps running across the field.";
+    ATRTextDisplayView *display = [self displayWithDocument:[self plainDocument:text]];
+    ATRTextLayout *initial = display.textLayout;
+    XCTAssertNotNil(initial);
+
+    display.maximumNumberOfLines = 0;
+    display.truncationToken = nil;
+    display.lineHeightMode = ATRLineHeightModeTypographic;
+    layoutNow(display);
+    XCTAssertEqual(display.textLayout, initial);
+
+    display.maximumNumberOfLines = 1;
+    XCTAssertNil(display.textLayout);
+    layoutNow(display);
+    XCTAssertEqual(display.textLayout.container.maximumNumberOfLines, 1u);
+    XCTAssertTrue(display.textLayout.truncated);
+
+    ATRTextLayout *limited = display.textLayout;
+    display.truncationToken = @"…";
+    layoutNow(display);
+    // Nil and U+2026 are the same token.
+    XCTAssertEqual(display.textLayout, limited);
+
+    display.truncationToken = @"...";
+    layoutNow(display);
+    XCTAssertEqualObjects(display.textLayout.truncationToken, @"...");
+
+    display.lineHeightMode = ATRLineHeightModeGlyphBounds;
+    layoutNow(display);
+    XCTAssertEqual(display.textLayout.container.lineHeightMode, ATRLineHeightModeGlyphBounds);
+}
+
+- (void)testResizingRelayoutsForTheNewWidth {
+    NSString *text = @"The quick brown fox jumps over the lazy dog and keeps running across the field.";
+    ATRTextDisplayView *display = [self displayWithDocument:[self plainDocument:text]];
+    NSUInteger wideLines = display.textLayout.lineCount;
+
+    display.frame = CGRectMake(0, 0, 120, 200);
+    layoutNow(display);
+
+    XCTAssertEqual(display.textLayout.container.width, 120);
+    XCTAssertGreaterThan(display.textLayout.lineCount, wideLines);
+
+    display.frame = CGRectMake(0, 0, 0, 200);
+    layoutNow(display);
+    XCTAssertNil(display.textLayout);
+}
+
+- (void)testRemovingTheDocumentClearsEverything {
+    ATRTextDisplayView *display = [self displayWithDocument:[self interactiveDocument]];
+    XCTAssertEqual(display.hitViews.count, 3u);
+
+    display.document = nil;
+    layoutNow(display);
+
+    XCTAssertNil(display.textLayout);
+    XCTAssertEqual(display.hitViews.count, 0u);
+    XCTAssertTrue(CGSizeEqualToSize([display sizeThatFitsWidth:400], CGSizeZero));
+}
+
+- (void)testSettingTheSameDocumentKeepsTheLayout {
+    ATRDocument *document = [self interactiveDocument];
+    ATRTextDisplayView *display = [self displayWithDocument:document];
+    ATRTextLayout *layout = display.textLayout;
+    NSArray<ATRHitView *> *hitViews = display.hitViews;
+
+    display.document = document;
+    layoutNow(display);
+
+    XCTAssertEqual(display.textLayout, layout);
+    XCTAssertEqualObjects(display.hitViews, hitViews);
+}
+
+- (void)testALayoutOfAnotherDocumentIsIgnored {
+    ATRDocument *first = [self plainDocument:@"First"];
+    ATRDocument *second = [self plainDocument:@"Second, which is longer"];
+    ATRTextLayout *foreign = [first layoutWithContainer:{400, INFINITY, 0, ATRLineHeightModeTypographic}
+                                        truncationToken:nil];
+    ATRTextDisplayView *display = [[ATRTextDisplayView alloc] initWithFrame:CGRectMake(0, 0, 400, 200)];
+
+    [display setDocument:second layout:foreign];
+    layoutNow(display);
+
+    XCTAssertNotEqual(display.textLayout, foreign);
+    XCTAssertEqual(display.textLayout.document, second);
+}
+
+- (void)testMeasuringRoundsUpAndLeavesTheLayoutAlone {
+    ATRTextDisplayView *display = [self displayWithDocument:[self plainDocument:@"Measure me"]];
+    ATRTextLayout *installed = display.textLayout;
+    CGSize narrow = [display sizeThatFitsWidth:50];
+    CGSize wide = [display sizeThatFitsWidth:400];
+
+    XCTAssertEqual(narrow.width, std::ceil(narrow.width));
+    XCTAssertEqual(narrow.height, std::ceil(narrow.height));
+    XCTAssertGreaterThan(narrow.height, wide.height);
+    XCTAssertEqual(wide.width, std::ceil(installed.size.width));
+    XCTAssertEqual(display.textLayout, installed);
+
+    XCTAssertTrue(CGSizeEqualToSize([display sizeThatFitsWidth:0], CGSizeZero));
+    XCTAssertTrue(CGSizeEqualToSize([display sizeThatFitsWidth:-5], CGSizeZero));
+    XCTAssertTrue(CGSizeEqualToSize([display sizeThatFitsWidth:NAN], CGSizeZero));
+    XCTAssertTrue(std::isfinite([display sizeThatFitsWidth:INFINITY].width));
+}
+
+- (void)testIntrinsicSizeNeedsAWidth {
+    ATRTextDisplayView *display = [[ATRTextDisplayView alloc] initWithFrame:CGRectZero];
+    display.document = [self plainDocument:@"Intrinsic"];
+#if TARGET_OS_OSX
+    XCTAssertEqual(display.intrinsicContentSize.height, NSViewNoIntrinsicMetric);
+#else
+    XCTAssertEqual(display.intrinsicContentSize.height, UIViewNoIntrinsicMetric);
+#endif
+
+    display.frame = CGRectMake(0, 0, 300, 10);
+    CGSize size = display.intrinsicContentSize;
+    XCTAssertGreaterThan(size.height, 0);
+    XCTAssertTrue(CGSizeEqualToSize(size, [display sizeThatFitsWidth:300]));
+}
+
+- (void)testImagesForSpacersFixedImagesAndUnknownIDs {
+    ATRDocumentBuilder *builder = [[ATRDocumentBuilder alloc] init];
+    ATRAttachmentDescriptor fixed = {};
+    fixed.sizeKind = ATRAttachmentSizeKindFixed;
+    fixed.width = 20;
+    fixed.height = 20;
+    ATRAttachmentDescriptor spacer = fixed;
+    spacer.kind = ATRAttachmentKindSpacer;
+    [builder beginParagraph:{} textStyle:{}];
+    uint32_t image = [builder appendAttachment:fixed accessibilityLabel:nil];
+    uint32_t gap = [builder appendAttachment:spacer accessibilityLabel:nil];
+    [builder endParagraph];
+    ATRTextDisplayView *display = [self displayWithDocument:[builder finish]];
+    ATRTextLayout *layout = display.textLayout;
+
+    [display setImage:makeImage(CGSizeMake(200, 100)) forAttachment:image];
+    [display setImage:makeImage(CGSizeMake(5, 5)) forAttachment:gap];
+    [display setImage:makeImage(CGSizeMake(5, 5)) forAttachment:99];
+    [display setImage:nil forAttachment:image];
+    layoutNow(display);
+
+    // None of these change the layout: a fixed image only redraws.
+    XCTAssertEqual(display.textLayout, layout);
+}
+
+- (void)testRemovingAnAsyncImageShrinksItBack {
+    ATRDocumentBuilder *builder = [[ATRDocumentBuilder alloc] init];
+    ATRAttachmentDescriptor descriptor = {};
+    descriptor.sizeKind = ATRAttachmentSizeKindAdaptive;
+    descriptor.fields = ATRAttachmentFieldMaxWidth;
+    descriptor.maxWidth = 80;
+    descriptor.pipeline = ATRImagePipelineAsyncImage;
+    [builder beginParagraph:{} textStyle:{}];
+    uint32_t attachment = [builder appendAttachment:descriptor accessibilityLabel:nil];
+    [builder endParagraph];
+    ATRTextDisplayView *display = [self displayWithDocument:[builder finish]];
+
+    [display setImage:makeImage(CGSizeMake(200, 100)) forAttachment:attachment];
+    layoutNow(display);
+    XCTAssertEqual(CGRectGetWidth([display.textLayout attachmentFrameAtIndex:0].frame), 80);
+
+    [display setImage:nil forAttachment:attachment];
+    layoutNow(display);
+    XCTAssertEqual(CGRectGetWidth([display.textLayout attachmentFrameAtIndex:0].frame), 0);
+}
+
+- (void)testImagesDoNotCarryOverToANewDocument {
+    ATRDocumentBuilder *builder = [[ATRDocumentBuilder alloc] init];
+    ATRAttachmentDescriptor descriptor = {};
+    descriptor.sizeKind = ATRAttachmentSizeKindAdaptive;
+    descriptor.fields = ATRAttachmentFieldMaxWidth;
+    descriptor.maxWidth = 80;
+    descriptor.pipeline = ATRImagePipelineAsyncImage;
+    [builder beginParagraph:{} textStyle:{}];
+    [builder appendAttachment:descriptor accessibilityLabel:nil];
+    [builder endParagraph];
+    ATRDocument *document = [builder finish];
+    ATRTextDisplayView *display = [self displayWithDocument:document];
+    [display setImage:makeImage(CGSizeMake(200, 100)) forAttachment:0];
+    layoutNow(display);
+
+    // An equal but distinct document starts without loaded images.
+    ATRDocumentBuilder *again = [[ATRDocumentBuilder alloc] init];
+    [again beginParagraph:{} textStyle:{}];
+    [again appendAttachment:descriptor accessibilityLabel:nil];
+    [again endParagraph];
+    display.document = [again finish];
+    layoutNow(display);
+
+    XCTAssertEqual(CGRectGetWidth([display.textLayout attachmentFrameAtIndex:0].frame), 0);
+}
+
+- (void)testReplacingTheRegistryRebuildsHitViews {
+    ATRTextDisplayView *display = [self displayWithDocument:[self interactiveDocument]];
+    NSArray<ATRHitView *> *before = display.hitViews;
+    CountingTapFactory *factory = [[CountingTapFactory alloc] init];
+    ATRGestureRecognizerRegistry *registry = [ATRGestureRecognizerRegistry defaultRegistry];
+    [registry registerFactory:factory forKind:ATRGestureKindTap];
+
+    display.gestureRegistry = registry;
+    layoutNow(display);
+
+    XCTAssertEqual(display.hitViews.count, before.count);
+    XCTAssertGreaterThan(factory.count, 0u);
+
+    for (ATRHitView *hitView in display.hitViews) {
+        for (ATRGestureBinding *binding in hitView.bindings) {
+            XCTAssertTrue([hitView.gestureRecognizers containsObject:binding.recognizer]);
+        }
+    }
+}
+
 @end

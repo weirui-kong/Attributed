@@ -149,8 +149,12 @@ CGSize ceilSize(CGSize size) {
 }
 
 - (void)setTruncationToken:(NSString *)truncationToken {
-    if (_truncationToken != truncationToken && ![_truncationToken isEqualToString:truncationToken]) {
-        _truncationToken = [truncationToken copy];
+    // Nil means U+2026, so switching between the two keeps the layout.
+    BOOL changed = ![(_truncationToken ?: kDefaultTruncationToken)
+        isEqualToString:(truncationToken ?: kDefaultTruncationToken)];
+    _truncationToken = [truncationToken copy];
+
+    if (changed) {
         [self invalidateLayout];
     }
 }

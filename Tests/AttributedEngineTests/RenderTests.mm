@@ -320,4 +320,299 @@ CGImageRef makeTwoToneImage(CGColorRef top, CGColorRef bottom) {
     XCTAssertEqualObjects([document textInRange:NSMakeRange(6, 3)], @"tap");
 }
 
+- (ATRTextLayout *)layoutOf:(NSString *)text style:(ATRTextStyle (^)(ATRDocumentBuilder *builder, int32_t font))style width:(double)width {
+    ATRDocumentBuilder *builder = [[ATRDocumentBuilder alloc] init];
+    int32_t font = [builder registerFont:[self font]];
+    [builder beginParagraph:{} textStyle:style(builder, font)];
+    [builder appendText:text];
+    [builder endParagraph];
+    return [[builder finish] layoutWithContainer:container(width) truncationToken:nil];
+}
+
+- (ATRTextStyle (^)(ATRDocumentBuilder *, int32_t))redText {
+    return ^ATRTextStyle(ATRDocumentBuilder *builder, int32_t font) {
+        ATRTextStyle style = fontStyle(font);
+        style.fields |= ATRTextStyleFieldForeground;
+        style.foreground = {ATRFillKindColor, [builder registerColor:[ATRPlatformColor redColor]]};
+        return style;
+    };
+}
+
+- (void)testEmptyRectsMakeNoImage {
+    ATRTextLayout *layout = [self layoutOf:@"H" style:[self redText] width:100];
+    ATRRenderSnapshot *snapshot = [[ATRRenderSnapshot alloc] initWithLayout:layout
+                                                                 appearance:nil
+                                                                     images:@{}
+                                                gradientsIncludeColorGlyphs:NO];
+
+    XCTAssertTrue([snapshot newImageForRect:CGRectZero scale:1] == NULL);
+    XCTAssertTrue([snapshot newImageForRect:CGRectMake(0, 0, 0, 10) scale:2] == NULL);
+    XCTAssertTrue([snapshot newImageForRect:CGRectNull scale:1] == NULL);
+}
+
+- (void)testScaleSetsThePixelSize {
+    ATRTextLayout *layout = [self layoutOf:@"H" style:[self redText] width:100];
+    ATRRenderSnapshot *snapshot = [[ATRRenderSnapshot alloc] initWithLayout:layout
+                                                                 appearance:nil
+                                                                     images:@{}
+                                                gradientsIncludeColorGlyphs:NO];
+    CGImageRef image = [snapshot newImageForRect:CGRectMake(0, 0, 50, 20) scale:3];
+
+    XCTAssertEqual(CGImageGetWidth(image), 150u);
+    XCTAssertEqual(CGImageGetHeight(image), 60u);
+    CGImageRelease(image);
+}
+
+- (void)testATileBelowTheTextIsEmpty {
+    ATRTextLayout *layout = [self layoutOf:@"HH" style:[self redText] width:200];
+    ATRRenderSnapshot *snapshot = [[ATRRenderSnapshot alloc] initWithLayout:layout
+                                                                 appearance:nil
+                                                                     images:@{}
+                                                gradientsIncludeColorGlyphs:NO];
+    CGImageRef image = [snapshot newImageForRect:CGRectMake(0, layout.size.height + 50, 200, 40) scale:1];
+    Bitmap bitmap(image);
+    CGImageRelease(image);
+
+    XCTAssertEqual(bitmap.count(isOpaque), 0u);
+}
+
+- (void)testMissingImagesAndSpacersDrawNothing {
+    ATRDocumentBuilder *builder = [[ATRDocumentBuilder alloc] init];
+    ATRAttachmentDescriptor image = {};
+    image.sizeKind = ATRAttachmentSizeKindFixed;
+    image.width = 30;
+    image.height = 30;
+    ATRAttachmentDescriptor spacer = image;
+    spacer.kind = ATRAttachmentKindSpacer;
+    [builder beginParagraph:{} textStyle:{}];
+    [builder appendAttachment:image accessibilityLabel:nil];
+    [builder appendAttachment:spacer accessibilityLabel:nil];
+    [builder endParagraph];
+    ATRTextLayout *layout = [[builder finish] layoutWithContainer:container(100) truncationToken:nil];
+
+    Bitmap bitmap = [self render:layout images:@{}];
+    XCTAssertEqual(bitmap.count(isOpaque), 0u);
+}
+
+- (void)testImagesForUnknownAttachmentsAreIgnored {
+    CGColorRef red = CGColorCreateSRGB(1, 0, 0, 1);
+    CGImageRef image = makeTwoToneImage(red, red);
+    ATRTextLayout *layout = [self layoutOf:@"x" style:^ATRTextStyle(ATRDocumentBuilder *, int32_t font) {
+        return fontStyle(font);
+    } width:100];
+
+    Bitmap bitmap = [self render:layout images:@{@42: (__bridge id)image}];
+    XCTAssertEqual(bitmap.count(isRed), 0u);
+
+    CGImageRelease(image);
+    CGColorRelease(red);
+}
+
+- (void)testDashedUnderlineHasGaps {
+    ATRTextLayout *layout = [self layoutOf:@"Dashed line" style:^ATRTextStyle(ATRDocumentBuilder *builder, int32_t font) {
+        ATRTextStyle style = fontStyle(font);
+        style.fields |= ATRTextStyleFieldUnderline | ATRTextStyleFieldUnderlineFill;
+        style.underline = {ATRUnderlineLinesSingle, ATRUnderlinePatternDash, 4, ATRUnderlineCornersSquare, 0};
+        style.underlineFill = {ATRFillKindColor, [builder registerColor:[ATRPlatformColor greenColor]]};
+        return style;
+    } width:400];
+
+    Bitmap bitmap = [self render:layout images:@{}];
+    ATRDecorationInfo decoration = [layout decorationAtIndex:0];
+    size_t row = static_cast<size_t>(CGRectGetMidY(decoration.rect));
+    size_t green = bitmap.countInRow(row, isGreen);
+
+    XCTAssertGreaterThan(green, static_cast<size_t>(CGRectGetWidth(decoration.rect) * 0.3));
+    XCTAssertLessThan(green, static_cast<size_t>(CGRectGetWidth(decoration.rect) * 0.9));
+}
+
+- (void)testDoubleUnderlineDrawsTwoLines {
+    ATRTextLayout *layout = [self layoutOf:@"Double" style:^ATRTextStyle(ATRDocumentBuilder *builder, int32_t font) {
+        ATRTextStyle style = fontStyle(font);
+        style.fields |= ATRTextStyleFieldUnderline | ATRTextStyleFieldUnderlineFill;
+        style.underline = {ATRUnderlineLinesDouble, ATRUnderlinePatternSolid, 2, ATRUnderlineCornersSquare, 0};
+        style.underlineFill = {ATRFillKindColor, [builder registerColor:[ATRPlatformColor greenColor]]};
+        return style;
+    } width:400];
+
+    ATRRenderSnapshot *snapshot = [[ATRRenderSnapshot alloc] initWithLayout:layout
+                                                                 appearance:nil
+                                                                     images:@{}
+                                                gradientsIncludeColorGlyphs:NO];
+    CGImageRef image = [snapshot newImageForRect:CGRectMake(0, 0, 400, ceil(layout.size.height) + 10) scale:4];
+    Bitmap bitmap(image);
+    CGImageRelease(image);
+    ATRDecorationInfo decoration = [layout decorationAtIndex:0];
+    size_t column = static_cast<size_t>(CGRectGetMidX(decoration.rect) * 4);
+    size_t bands = 0;
+    bool inBand = false;
+
+    for (size_t y = 0; y < bitmap.height(); ++y) {
+        bool green = isGreen(bitmap.at(column, y));
+
+        if (green && !inBand) {
+            ++bands;
+        }
+
+        inBand = green;
+    }
+
+    XCTAssertEqual(bands, 2u);
+}
+
+- (void)testLineScopeGradientRestartsOnEveryLine {
+    ATRDocumentBuilder *builder = [[ATRDocumentBuilder alloc] init];
+    int32_t font = [builder registerFont:[self font]];
+    int32_t colors[] = {
+        [builder registerColor:[ATRPlatformColor redColor]],
+        [builder registerColor:[ATRPlatformColor blueColor]],
+    };
+    int32_t gradient = [builder registerGradientWithColors:colors
+                                                 locations:nil
+                                                     count:2
+                                                descriptor:{0, 0.5, 1, 0.5, ATRGradientScopeLine}];
+    ATRTextStyle style = fontStyle(font);
+    style.fields |= ATRTextStyleFieldForeground;
+    style.foreground = {ATRFillKindGradient, gradient};
+    [builder beginParagraph:{} textStyle:style];
+    [builder appendText:@"HHHH HHHH"];
+    [builder endParagraph];
+    ATRTextLayout *layout = [[builder finish] layoutWithContainer:container(160) truncationToken:nil];
+    XCTAssertEqual(layout.lineCount, 2u);
+
+    Bitmap bitmap = [self render:layout images:@{}];
+
+    for (NSUInteger index = 0; index < layout.lineCount; ++index) {
+        size_t row = static_cast<size_t>([layout lineAtIndex:index].baseline) - 10;
+        size_t first = SIZE_MAX;
+
+        for (size_t x = 0; x < bitmap.width() && first == SIZE_MAX; ++x) {
+            if (isOpaque(bitmap.at(x, row))) {
+                first = x;
+            }
+        }
+
+        Pixel left = bitmap.at(first, row);
+        XCTAssertGreaterThan(left.red, left.blue, @"line %lu", (unsigned long)index);
+    }
+}
+
+- (void)testTruncationTokenDrawsInTheTextStyle {
+    ATRDocumentBuilder *builder = [[ATRDocumentBuilder alloc] init];
+    int32_t font = [builder registerFont:[self font]];
+    ATRTextStyle style = [self redText](builder, font);
+    [builder beginParagraph:{} textStyle:style];
+    [builder appendText:@"HHHHHHHHHHHHHHHHHHHH"];
+    [builder endParagraph];
+    ATRTextContainer limited = container(200);
+    limited.maximumNumberOfLines = 1;
+    ATRTextLayout *layout = [[builder finish] layoutWithContainer:limited truncationToken:@"HH"];
+
+    Bitmap bitmap = [self render:layout images:@{}];
+    ATRLineInfo line = [layout lineAtIndex:0];
+    size_t row = static_cast<size_t>(line.baseline) - 5;
+    size_t lastRed = 0;
+
+    for (size_t x = 0; x < bitmap.width(); ++x) {
+        if (isRed(bitmap.at(x, row))) {
+            lastRed = x;
+        }
+    }
+
+    XCTAssertTrue(layout.truncated);
+    // The token "HH" is red too and reaches the end of the line.
+    XCTAssertGreaterThan(lastRed, CGRectGetMaxX(line.frame) - 10);
+}
+
+- (void)testDefaultForegroundFollowsTheAppearance {
+    ATRTextLayout *layout = [self layoutOf:@"HH" style:^ATRTextStyle(ATRDocumentBuilder *, int32_t font) {
+        return fontStyle(font);
+    } width:200];
+#if TARGET_OS_OSX
+    ATRPlatformAppearance *light = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+    ATRPlatformAppearance *dark = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+#else
+    ATRPlatformAppearance *light = [UITraitCollection traitCollectionWithUserInterfaceStyle:UIUserInterfaceStyleLight];
+    ATRPlatformAppearance *dark = [UITraitCollection traitCollectionWithUserInterfaceStyle:UIUserInterfaceStyleDark];
+#endif
+
+    auto brightness = [&](ATRPlatformAppearance *appearance) {
+        ATRRenderSnapshot *snapshot = [[ATRRenderSnapshot alloc] initWithLayout:layout
+                                                                     appearance:appearance
+                                                                         images:@{}
+                                                    gradientsIncludeColorGlyphs:NO];
+        CGImageRef image = [snapshot newImageForRect:CGRectMake(0, 0, 200, ceil(layout.size.height)) scale:1];
+        Bitmap bitmap(image);
+        CGImageRelease(image);
+        size_t total = 0;
+        size_t count = 0;
+
+        for (size_t y = 0; y < bitmap.height(); ++y) {
+            for (size_t x = 0; x < bitmap.width(); ++x) {
+                Pixel pixel = bitmap.at(x, y);
+
+                // The label color is translucent; unpremultiply.
+                if (pixel.alpha > 150) {
+                    total += pixel.red * 255 / pixel.alpha;
+                    ++count;
+                }
+            }
+        }
+
+        return count == 0 ? -1.0 : static_cast<double>(total) / count;
+    };
+
+    double lightText = brightness(light);
+    double darkText = brightness(dark);
+    XCTAssertGreaterThanOrEqual(lightText, 0);
+    XCTAssertLessThan(lightText, 80);
+    XCTAssertGreaterThan(darkText, 170);
+}
+
+- (void)testDrawingOffTheMainThreadMatches {
+    ATRTextLayout *layout = [self layoutOf:@"Threads" style:[self redText] width:300];
+    ATRRenderSnapshot *snapshot = [[ATRRenderSnapshot alloc] initWithLayout:layout
+                                                                 appearance:nil
+                                                                     images:@{}
+                                                gradientsIncludeColorGlyphs:NO];
+    CGRect rect = CGRectMake(0, 0, 300, ceil(layout.size.height));
+    CGImageRef main = [snapshot newImageForRect:rect scale:2];
+    size_t expected = Bitmap(main).count(isRed);
+    CGImageRelease(main);
+    __block size_t mismatches = 0;
+    NSLock *lock = [[NSLock alloc] init];
+
+    dispatch_apply(8, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^(size_t) {
+        CGImageRef image = [snapshot newImageForRect:rect scale:2];
+        size_t count = Bitmap(image).count(isRed);
+        CGImageRelease(image);
+
+        if (count != expected) {
+            [lock lock];
+            ++mismatches;
+            [lock unlock];
+        }
+    });
+
+    XCTAssertGreaterThan(expected, 0u);
+    XCTAssertEqual(mismatches, 0u);
+}
+
+- (void)testRightToLeftTextDrawsOnTheRight {
+    ATRTextLayout *layout = [self layoutOf:@"שלום" style:[self redText] width:400];
+    Bitmap bitmap = [self render:layout images:@{}];
+    size_t row = static_cast<size_t>([layout lineAtIndex:0].baseline) - 5;
+    size_t left = 0;
+    size_t right = 0;
+
+    for (size_t x = 0; x < bitmap.width(); ++x) {
+        if (isRed(bitmap.at(x, row))) {
+            (x < 200 ? left : right) += 1;
+        }
+    }
+
+    XCTAssertEqual(left, 0u);
+    XCTAssertGreaterThan(right, 0u);
+}
+
 @end
