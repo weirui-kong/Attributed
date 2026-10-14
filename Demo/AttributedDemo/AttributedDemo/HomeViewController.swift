@@ -19,6 +19,12 @@ final class HomeViewController: UITableViewController {
             makeViewController: { ShowcaseViewController() }
         ),
         Demo(
+            title: "Transitions",
+            subtitle: "Numeric text next to SwiftUI's own",
+            symbol: "textformat.123",
+            makeViewController: { TransitionsViewController() }
+        ),
+        Demo(
             title: "Performance",
             subtitle: "Up to 1M characters in one text view, timed stage by stage",
             symbol: "speedometer",

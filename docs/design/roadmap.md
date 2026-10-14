@@ -76,4 +76,17 @@ Design: [text-geometry.md](text-geometry.md).
 - [ ] iOS read-only selection on the public queries (approach still open).
 - [ ] macOS selection.
 
+## P5: Text transitions
+
+Design: [text-transitions.md](text-transitions.md).
+
+- [x] Engine: per-glyph atoms with disjoint pixel-aligned tiles, interned font keys, and numeric flags.
+- [x] `ATRGlyphSnapshot`: one bitmap plus its atoms.
+- [x] Host in `ATRTextDisplayView`: begin, hand over at layout, relayout, finish after async bitmaps, and the four outcomes.
+- [x] `numericText` on iOS: diff with odometer rule, springs, stagger, stretch, screen or view anchoring, and a Metal overlay synchronized with the Core Animation transaction.
+- [x] Swift `TextTransition`, `TextView.setText(_:transition:completion:)`, and prewarm.
+- [x] Demo page that shows the effect above SwiftUI's own.
+- [ ] macOS overlay.
+- [ ] `blurReplace`.
+
 Out of scope for now: editing and input methods.

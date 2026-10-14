@@ -16,6 +16,19 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
 
         let window = UIWindow(windowScene: windowScene)
+        let arguments = ProcessInfo.processInfo.arguments
+
+        // `-readmeTransition [dark]` shows only the README's animated card,
+        // without navigation or the FPS badge, for a clean recording.
+        if let index = arguments.firstIndex(of: "-readmeTransition") {
+            let isDark = index + 1 < arguments.count && arguments[index + 1] == "dark"
+            window.overrideUserInterfaceStyle = isDark ? .dark : .light
+            window.rootViewController = ReadmeTransitionViewController()
+            window.makeKeyAndVisible()
+            self.window = window
+            return
+        }
+
         let navigationController = UINavigationController(rootViewController: HomeViewController())
         navigationController.navigationBar.prefersLargeTitles = true
         window.rootViewController = navigationController
@@ -25,7 +38,6 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         // `-stressSeconds N` runs the stress page for N seconds and returns
         // home, so memory can be measured after a reproducible run.
-        let arguments = ProcessInfo.processInfo.arguments
 
         if let index = arguments.firstIndex(of: "-stressSeconds"), index + 1 < arguments.count,
            let seconds = TimeInterval(arguments[index + 1]) {

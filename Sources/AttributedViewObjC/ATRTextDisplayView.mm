@@ -3,6 +3,7 @@
 
 #import "ATRTextDisplayView.h"
 
+#import "ATRGlyphSnapshot.h"
 #import "ATRHitViewManager.h"
 #import "ATRRenderSnapshot.h"
 #import "ATRScrollObserver.h"
@@ -70,6 +71,14 @@ CGSize ceilSize(CGSize size) {
     ATRTileController *_tiles;
     ATRScrollObserver *_scrollObserver;
     ATRHitViewManager *_hitViews;
+    BOOL _transitionPending;
+    // Set when the content changed since the effect last got a snapshot.
+    BOOL _transitionContentStale;
+    // The handler of the call the running effect is heading for.
+    void (^_transitionCompletion)(ATRTextTransitionOutcome);
+    // Bumped when the running transition gets new text or ends, so a finish
+    // waiting for bitmaps can tell whether it still applies.
+    uint64_t _transitionGeneration;
 }
 
 #pragma mark - Lifecycle
@@ -122,6 +131,14 @@ CGSize ceilSize(CGSize size) {
 }
 
 - (void)setDocument:(ATRDocument *)document layout:(ATRTextLayout *)layout {
+    if (!_transitionPending) {
+        [self endTransition:ATRTextTransitionOutcomeInterrupted];
+    }
+
+    [self replaceDocument:document layout:layout];
+}
+
+- (void)replaceDocument:(ATRDocument *)document layout:(ATRTextLayout *)layout {
     ATRTextLayout *prepared = layout.document == document ? layout : nil;
 
     if (_document == document) {
@@ -172,6 +189,7 @@ CGSize ceilSize(CGSize size) {
     }
 
     _viewportRenderingEnabled = viewportRenderingEnabled;
+    [self endTransition:ATRTextTransitionOutcomeInterrupted];
     [_tiles removeAllLayers];
     [self updateScrollViewObservation];
     [self setNeedsLayoutPass];
@@ -341,6 +359,7 @@ CGSize ceilSize(CGSize size) {
 
 - (void)invalidateContent {
     _snapshot = nil;
+    _transitionContentStale = YES;
     [_tiles invalidateContent];
     [self setNeedsLayoutPass];
 }
@@ -385,6 +404,7 @@ CGSize ceilSize(CGSize size) {
         _layoutValid = NO;
         [_tiles removeAllLayers];
         [_hitViews removeAll];
+        [self updateTransitionAfterLayout];
         return;
     }
 
@@ -397,6 +417,7 @@ CGSize ceilSize(CGSize size) {
     }
 
     [self updateRendering];
+    [self updateTransitionAfterLayout];
 }
 
 - (void)installLayout:(ATRTextLayout *)layout {
@@ -404,6 +425,7 @@ CGSize ceilSize(CGSize size) {
     _preparedLayout = nil;
     _layoutValid = YES;
     _snapshot = nil;
+    _transitionContentStale = YES;
     [_tiles invalidateContent];
     [_hitViews updateWithLayout:layout visibleRect:[self hitViewRect]];
 
@@ -487,6 +509,112 @@ CGSize ceilSize(CGSize size) {
     return _tiles.renderedTileIndexes;
 }
 
+#pragma mark - Transitions
+
+- (void)setDocument:(ATRDocument *)document
+             layout:(ATRTextLayout *)layout
+         transition:(id<ATRTextTransitionEffect> (^)(id<ATRTextTransitionEffect>))resolve
+         completion:(void (^)(ATRTextTransitionOutcome))completion {
+    // Told last, so a handler that sets a document again finds this call done.
+    void (^superseded)(ATRTextTransitionOutcome) = _transitionCompletion;
+    _transitionCompletion = nil;
+    id<ATRTextTransitionEffect> effect = resolve(_transitionEffect);
+
+    if (effect != _transitionEffect) {
+        [self endTransition:ATRTextTransitionOutcomeSuperseded];
+        __weak ATRTextDisplayView *weakSelf = self;
+
+        if (self.window && !_viewportRenderingEnabled && !CGRectIsEmpty(self.bounds)
+            && [effect beginOnHost:self snapshot:[self glyphSnapshot] completion:^{
+                   [weakSelf transitionDidFinish];
+               }]) {
+            _transitionEffect = effect;
+            _tiles.hidden = YES;
+        }
+    }
+
+    BOOL running = _transitionEffect != nil;
+    _transitionGeneration += 1;
+    _transitionPending = running;
+    _transitionCompletion = running ? [completion copy] : nil;
+    [self replaceDocument:document layout:layout];
+
+    // The same document again changes no layout, but the effect still waits
+    // for a layout pass to hand it the content.
+    if (running) {
+        [self setNeedsLayoutPass];
+    }
+
+    if (superseded) {
+        superseded(ATRTextTransitionOutcomeSuperseded);
+    }
+
+    if (!running && completion) {
+        completion(ATRTextTransitionOutcomeSkipped);
+    }
+}
+
+// The content as drawn now, over the same extent the view draws.
+- (ATRGlyphSnapshot *)glyphSnapshot {
+    ATRRenderSnapshot *snapshot = _document && _textLayout ? [self currentSnapshot] : nil;
+    return [[ATRGlyphSnapshot alloc] initWithRenderSnapshot:snapshot bounds:self.bounds scale:[self renderScale]];
+}
+
+// New content is only handed over here, never when it is set: a change of
+// intrinsic size means the bounds it is laid out for are not known before.
+- (void)updateTransitionAfterLayout {
+    id<ATRTextTransitionEffect> effect = _transitionEffect;
+    BOOL stale = _transitionContentStale;
+    _transitionContentStale = NO;
+
+    if (!effect || !(_transitionPending || stale)) {
+        return;
+    }
+
+    if (_transitionPending) {
+        _transitionPending = NO;
+        [effect transitionToSnapshot:[self glyphSnapshot]];
+    } else if (![effect relayoutWithSnapshot:[self glyphSnapshot]]) {
+        [self endTransition:ATRTextTransitionOutcomeInterrupted];
+    }
+}
+
+// With asynchronous drawing the new content's bitmap may still be on its
+// way; the effect keeps showing its last frame until it lands.
+- (void)transitionDidFinish {
+    uint64_t generation = _transitionGeneration;
+    __weak ATRTextDisplayView *weakSelf = self;
+
+    [_tiles performWhenRendered:^{
+        ATRTextDisplayView *view = weakSelf;
+
+        if (view && view->_transitionGeneration == generation) {
+            [view endTransition:ATRTextTransitionOutcomeFinished];
+        }
+    }];
+}
+
+- (void)endTransition:(ATRTextTransitionOutcome)outcome {
+    id<ATRTextTransitionEffect> effect = _transitionEffect;
+
+    if (!effect) {
+        return;
+    }
+
+    void (^completion)(ATRTextTransitionOutcome) = _transitionCompletion;
+    _transitionEffect = nil;
+    _transitionPending = NO;
+    _transitionContentStale = NO;
+    _transitionCompletion = nil;
+    _transitionGeneration += 1;
+    [effect cancel];
+    _tiles.hidden = NO;
+
+    if (completion) {
+        completion(outcome);
+    }
+}
+
 #pragma mark - Appearance and hierarchy
 
 #if TARGET_OS_OSX
@@ -502,6 +630,11 @@ CGSize ceilSize(CGSize size) {
 
 - (void)viewDidMoveToWindow {
     [super viewDidMoveToWindow];
+
+    if (!self.window) {
+        [self endTransition:ATRTextTransitionOutcomeInterrupted];
+    }
+
     [self updateScrollViewObservation];
     [self setNeedsLayoutPass];
 }
@@ -518,6 +651,11 @@ CGSize ceilSize(CGSize size) {
 
 - (void)didMoveToWindow {
     [super didMoveToWindow];
+
+    if (!self.window) {
+        [self endTransition:ATRTextTransitionOutcomeInterrupted];
+    }
+
     [self updateScrollViewObservation];
     [self setNeedsLayoutPass];
 }

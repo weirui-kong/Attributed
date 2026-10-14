@@ -46,9 +46,13 @@ let package = Package(
         .target(
             name: "AttributedViewObjC",
             dependencies: ["AttributedEngineObjC"],
+            // Compiled into default.metallib; building needs the Metal
+            // Toolchain (xcodebuild -downloadComponent MetalToolchain).
+            resources: [.process("ATRNumericText.metal")],
             linkerSettings: [
                 .linkedFramework("Foundation"),
                 .linkedFramework("QuartzCore"),
+                .linkedFramework("Metal"),
                 .linkedFramework("UIKit", .when(platforms: [.iOS])),
                 .linkedFramework("AppKit", .when(platforms: [.macOS]))
             ]

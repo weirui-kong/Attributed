@@ -27,6 +27,7 @@ NSDictionary<NSString *, id<CAAction>> *disabledActions() {
         @"bounds": NSNull.null,
         @"transform": NSNull.null,
         @"contentsScale": NSNull.null,
+        @"hidden": NSNull.null,
     };
     return actions;
 }
@@ -43,6 +44,8 @@ NSDictionary<NSString *, id<CAAction>> *disabledActions() {
     CGRect _surfaceRect;
     NSMutableDictionary<NSNumber *, CALayer *> *_tiles;
     std::unordered_map<NSInteger, uint64_t> _tileGenerations;
+    NSUInteger _rendersInFlight;
+    NSMutableArray<void (^)(void)> *_renderedBlocks;
 }
 
 - (instancetype)initWithHostLayer:(CALayer *)hostLayer {
@@ -53,6 +56,7 @@ NSDictionary<NSString *, id<CAAction>> *disabledActions() {
         _tileHeight = kDefaultTileHeight;
         _generation = 1;
         _tiles = [NSMutableDictionary dictionary];
+        _renderedBlocks = [NSMutableArray array];
     }
 
     return self;
@@ -81,6 +85,7 @@ NSDictionary<NSString *, id<CAAction>> *disabledActions() {
 - (CALayer *)makeLayer {
     CALayer *layer = [CALayer layer];
     layer.actions = disabledActions();
+    layer.hidden = _hidden;
     [_hostLayer addSublayer:layer];
 
 #if TARGET_OS_OSX
@@ -177,9 +182,11 @@ NSDictionary<NSString *, id<CAAction>> *disabledActions() {
     }
 
     _requestCounter += 1;
+    _rendersInFlight += 1;
     NSNumber *request = @(_requestCounter);
     [layer setValue:request forKey:kRequestKey];
     __weak CALayer *weakLayer = layer;
+    __weak ATRTileController *weakSelf = self;
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         CGImageRef image = [snapshot newImageForRect:rect scale:scale];
 
@@ -193,8 +200,42 @@ NSDictionary<NSString *, id<CAAction>> *disabledActions() {
             if (image) {
                 CGImageRelease(image);
             }
+
+            [weakSelf renderDidFinish];
         });
     });
+}
+
+- (void)setHidden:(BOOL)hidden {
+    _hidden = hidden;
+    _surface.hidden = hidden;
+
+    for (CALayer *layer in _tiles.allValues) {
+        layer.hidden = hidden;
+    }
+}
+
+- (void)performWhenRendered:(void (^)(void))block {
+    if (_rendersInFlight == 0) {
+        block();
+    } else {
+        [_renderedBlocks addObject:[block copy]];
+    }
+}
+
+- (void)renderDidFinish {
+    _rendersInFlight -= 1;
+
+    if (_rendersInFlight > 0) {
+        return;
+    }
+
+    NSArray<void (^)(void)> *blocks = [_renderedBlocks copy];
+    [_renderedBlocks removeAllObjects];
+
+    for (void (^block)(void) in blocks) {
+        block();
+    }
 }
 
 - (void)removeTiles {

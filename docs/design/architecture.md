@@ -39,17 +39,17 @@ Attributed (facade)
 | --- | --- | --- | --- |
 | `Attributed` | Swift | yes | Re-exports `AttributedCore` and `AttributedUI`; `ATR*` aliases |
 | `AttributedCore` | Swift | yes | `DSL/` (nodes, modifiers, gestures, gradients, styles), `IR/` (thin builder over the engine), `Layout/` (`TextContainer`, `TextLayout`, `PreparedText`). No views, so it can measure and prepare off the main thread. |
-| `AttributedUI` | Swift | yes | `TextView`, `TextViewDelegate`, `InteractionEvent`; closures, values, and AsyncImage loading |
-| `AttributedEngineObjC` | ObjC++ | no | Model facade: `ATRDocumentBuilder`, `ATRDocument`, `ATRTextLayout`, `ATRRenderSnapshot`, C value types |
-| `AttributedViewObjC` | ObjC++ | no | View layer: `ATRTextDisplayView`, `ATRHitView`, gesture bindings, factories, registry, policy; private `ATRTileController`, `ATRScrollObserver`, `ATRHitViewManager`. Uses only the model facade's public ObjC API. |
+| `AttributedUI` | Swift | yes | `TextView`, `TextViewDelegate`, `InteractionEvent`, `TextTransition`; closures, values, and AsyncImage loading |
+| `AttributedEngineObjC` | ObjC++ | no | Model facade: `ATRDocumentBuilder`, `ATRDocument`, `ATRTextLayout`, `ATRRenderSnapshot`, `ATRGlyphSnapshot`, C value types |
+| `AttributedViewObjC` | ObjC++ | no | View layer: `ATRTextDisplayView`, `ATRHitView`, gesture bindings, factories, registry, policy, text transition effects (`ATRNumericTextTransition`, Metal); private `ATRTileController`, `ATRScrollObserver`, `ATRHitViewManager`. Uses only the model facade's public ObjC API. |
 | `AttributedEngine` | C++20 | no | `document/`, `resolve/`, `layout/`, `render/` with matching headers under `include/atr/`; links CoreFoundation, CoreGraphics, CoreText |
 
 | Test target | Covers |
 | --- | --- |
 | `AttributedCoreTests` | Lowering snapshots, Swift layout API |
 | `AttributedUITests` | `TextView` delegate events, AsyncImage loading, prepared text from a background queue |
-| `AttributedEngineTests` | Builder validation, dump, resolution, layout, shared fallback fonts, incremental relayout, rendering pixels |
-| `AttributedViewObjCTests` | Hit views, gestures, viewport hit view reuse, tiling, scroll observation, prepared layouts, async rendering |
+| `AttributedEngineTests` | Builder validation, dump, resolution, layout, shared fallback fonts, incremental relayout, rendering pixels, glyph atoms |
+| `AttributedViewObjCTests` | Hit views, gestures, viewport hit view reuse, tiling, scroll observation, prepared layouts, async rendering, text transitions |
 
 - A SwiftPM target can't mix Swift with C-family code, and the view and model layers are split on purpose, so there are three non-Swift targets.
 - Cross-target internals:
@@ -67,5 +67,8 @@ Attributed (facade)
 
 - macOS: `swift test`
 - iOS: `xcodebuild -scheme Attributed-Package -destination "id=<iPhone simulator UDID>" test` runs all four test targets. `xcodebuild` may keep running after the last bundle reports, so scripts should stop it once every `Test Suite 'All tests'` line has appeared.
+- Building needs the Metal Toolchain (`xcodebuild -downloadComponent MetalToolchain`): `AttributedViewObjC` compiles `ATRNumericText.metal` into its resource bundle (decision 50).
+- After adding a header to a target's `include/`, clear the explicit module cache (decision 49).
 - Demo: `Demo/AttributedDemo` (UIKit). Launch arguments `-benchmark size,script,style,mode` (segment indexes) and `-stressSeconds N` open the Performance and Stress pages for repeatable measurements.
+- README animation: launching the Demo with `-readmeTransition` (or `-readmeTransition dark`) shows only the looping card and logs its frame as `README_TRANSITION_CARD`. Record one cycle with `xcrun simctl io <udid> recordVideo`, then crop it to the card with ffmpeg. One cycle is four transitions, 6.4 s, starting just before a transition. Make a 30 fps GIF at 2x. Snap near-white and near-black to pure white and black first, so the card has no visible edge on GitHub. Write it to `docs/images/readme/transition-{light,dark}.gif`.
 - README images: launching the Demo with `-readmeShots` renders every README example in light and dark to the app's `Documents/readme`; copy them to [`docs/images/readme/`](../images/readme/). The example texts live in `ReadmeShotsViewController.swift` and must stay in sync with the README's code blocks.

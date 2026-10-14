@@ -50,6 +50,7 @@ final class TextView: PlatformView {
     // Identifies the current text so deferred image loads for replaced text
     // are dropped.
     private var textGeneration = 0
+    // Set while a setter assigns `text` and shows it itself.
     private var isSettingPreparedText = false
 
     public var text: AttributedText? {
@@ -125,6 +126,35 @@ final class TextView: PlatformView {
         display(prepared.lowered, layout: prepared.layout)
     }
 
+    // Replaces the text with a transition. The view may resize or move
+    // because of the new text, and may be laid out again while the
+    // transition runs. Outside a window, with viewport rendering, with empty
+    // bounds, or when the transition cannot run here, the text is simply
+    // replaced. Embedded images and spacers move with their glyph; hit views
+    // jump to their new places at once. `completion` is called once on the
+    // main thread with how this call ended, unless the view goes away first.
+    public func setText(
+        _ newText: AttributedText?,
+        transition: TextTransition,
+        completion: ((TextTransitionOutcome) -> Void)? = nil
+    ) {
+        isSettingPreparedText = true
+        text = newText
+        isSettingPreparedText = false
+        display(newText?.lower(), layout: nil, transition: transition, completion: completion)
+    }
+
+    public func setText(
+        _ prepared: PreparedText,
+        transition: TextTransition,
+        completion: ((TextTransitionOutcome) -> Void)? = nil
+    ) {
+        isSettingPreparedText = true
+        text = prepared.text
+        isSettingPreparedText = false
+        display(prepared.lowered, layout: prepared.layout, transition: transition, completion: completion)
+    }
+
     @available(*, unavailable)
     public required init?(coder: NSCoder) {
         fatalError("init(coder:) is unavailable")
@@ -181,10 +211,27 @@ final class TextView: PlatformView {
         #endif
     }
 
-    private func display(_ lowered: IR.LoweredText?, layout: TextLayout?) {
+    private func display(
+        _ lowered: IR.LoweredText?,
+        layout: TextLayout?,
+        transition: TextTransition? = nil,
+        completion: ((TextTransitionOutcome) -> Void)? = nil
+    ) {
         self.lowered = lowered
         textGeneration += 1
-        display.setDocument(lowered?.document.engine, layout: layout?.engine)
+
+        if let transition {
+            display.setDocument(
+                lowered?.document.engine,
+                layout: layout?.engine,
+                transition: transition.resolve,
+                completion: completion.map { completion in
+                    { outcome in completion(TextTransitionOutcome(outcome)) }
+                }
+            )
+        } else {
+            display.setDocument(lowered?.document.engine, layout: layout?.engine)
+        }
 
         #if canImport(UIKit)
         accessibilityLabel = lowered?.document.engine.plainText

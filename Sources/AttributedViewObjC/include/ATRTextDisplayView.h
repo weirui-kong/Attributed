@@ -5,6 +5,7 @@
 #import "ATRGestures.h"
 #import "ATRHitView.h"
 #import "ATRTextLayout.h"
+#import "ATRTextTransition.h"
 #import "ATRTypes.h"
 
 // The display surface behind the public Swift text view. It lays out its
@@ -19,6 +20,21 @@
 // and settings; otherwise the view lays out again. A layout of another
 // document is ignored.
 - (void)setDocument:(nullable ATRDocument *)document layout:(nullable ATRTextLayout *)layout;
+// Replaces the document with a transition. `resolve` gets the effect running
+// now, if any, and returns the one to run: the same object to carry on from
+// where it is, or a new one. The effect gets the new content at the next
+// layout pass, when the bounds it is laid out for are known, and again on
+// every relayout while it runs. Outside a window, with viewport rendering,
+// with empty bounds, or when the effect cannot begin, the document is simply
+// replaced. A plain document assignment while a transition runs shows the
+// new document at once. `completion` is called once on the main thread with
+// how this call ended, unless the view goes away first.
+- (void)setDocument:(nullable ATRDocument *)document
+             layout:(nullable ATRTextLayout *)layout
+         transition:(id<ATRTextTransitionEffect> _Nonnull (^_Nonnull)(id<ATRTextTransitionEffect> _Nullable running))resolve
+         completion:(nullable void (^)(ATRTextTransitionOutcome outcome))completion;
+// The effect showing the content in place of the view's own drawing.
+@property (nonatomic, readonly, nullable) id<ATRTextTransitionEffect> transitionEffect;
 // Zero means unlimited.
 @property (nonatomic) NSUInteger maximumNumberOfLines;
 // Nil uses U+2026.

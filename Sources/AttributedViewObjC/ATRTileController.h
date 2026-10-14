@@ -19,6 +19,9 @@ typedef ATRRenderSnapshot *_Nonnull (^ATRSnapshotProvider)(void);
 @property (nonatomic) CGFloat tileHeight;
 @property (nonatomic) BOOL rendersAsynchronously;
 @property (nonatomic, readonly, nonnull) NSIndexSet *renderedTileIndexes;
+// Hides every layer, including ones made later, while a transition shows
+// the content in their place.
+@property (nonatomic, getter=isHidden) BOOL hidden;
 
 - (nonnull instancetype)initWithHostLayer:(nonnull CALayer *)hostLayer NS_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)init NS_UNAVAILABLE;
@@ -38,5 +41,9 @@ typedef ATRRenderSnapshot *_Nonnull (^ATRSnapshotProvider)(void);
                    snapshot:(nonnull ATRSnapshotProvider)snapshot;
 
 - (void)removeAllLayers;
+
+// Calls `block` once every bitmap requested so far is installed or dropped:
+// at once when drawing synchronously or nothing is in flight.
+- (void)performWhenRendered:(nonnull void (^)(void))block;
 
 @end

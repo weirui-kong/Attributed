@@ -5,10 +5,16 @@
 
 Attributed builds rich text with a Swift DSL and displays it in its own text view, laid out and drawn directly on CoreText by an Objective-C++/C++ engine. It doesn't use TextKit and never exposes `NSAttributedString`.
 
-- **Display only**, like a read-only `UITextView`: taps, multi-taps, and long presses on any part of the text, with no editing or selection.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/readme/transition-dark.gif">
+  <img src="docs/images/readme/transition-light.gif" alt="A gradient price and an unread count changing with the numeric text transition: changed digits roll behind a blur while the rest slide into place" width="390">
+</picture>
+
+- **Display only (currently!)**, like a read-only `UITextView`: taps, multi-taps, and long presses on any part of the text, with no editing or selection yet.
 - **Engine-drawn styling**: gradient text joined across runs, underlines with patterns, thickness, rounded corners, and gradient fills.
 - **Images inline**, given up front or loaded after the text appears.
 - **Complex scripts**: Arabic and Hebrew, plus line height that can grow to fit the stacked marks of Thai, Myanmar, and Tibetan.
+- **Text transitions**: SwiftUI's numeric text transition on iOS, drawn with Metal, for prices and counters.
 - **Long text**: layout on any thread, viewport tiling, and hit views only near the screen. In the demo, 1M characters of mixed scripts and styles scroll at full frame rate.
 
 ## Examples
@@ -144,6 +150,16 @@ textView.isViewportRenderingEnabled = true      // draw only tiles near the encl
   <img src="docs/images/readme/options-light.png" alt="Thai and Myanmar lines sized to their glyphs, truncated after three lines with a custom token" width="390">
 </picture>
 
+### Text transitions
+
+SwiftUI's numeric text transition, on iOS: changed digits roll behind a blur, and kept glyphs slide to their new places. The animation at the top of this page is this call.
+
+```swift
+textView.setText(price, transition: .numericText(.upward)) { outcome in
+    print(outcome)   // .finished, .superseded, .interrupted, or .skipped
+}
+```
+
 ### Layout off the main thread
 
 ```swift
@@ -164,6 +180,7 @@ layout.size; layout.lineCount; layout.isTruncated
 [`Demo/AttributedDemo`](Demo/AttributedDemo) is a UIKit app:
 
 - **Showcase**: every feature, mixed styles, and multilingual text.
+- **Transitions**: the numeric text transition above SwiftUI's own, for comparison.
 - **Performance**: up to 1M characters in one text view, timed stage by stage.
 - **Stress**: random view lifecycles and background layout, checked for hangs.
 
@@ -174,7 +191,11 @@ layout.size; layout.lineCount; layout.isTruncated
 
 ## Requirements
 
-iOS 15+ or macOS 13+, Swift 6. See [`Package.swift`](Package.swift).
+iOS 15+ or macOS 13+, Swift 6. See [`Package.swift`](Package.swift). Building needs Xcode's Metal Toolchain for the text transition shader:
+
+```bash
+xcodebuild -downloadComponent MetalToolchain
+```
 
 ## Documentation
 
@@ -186,6 +207,7 @@ iOS 15+ or macOS 13+, Swift 6. See [`Package.swift`](Package.swift).
 | [DSL](docs/design/dsl.md) | Nodes and modifiers: text, underlines, groups, interactions, images, gradients |
 | [IR](docs/design/ir.md) | Op stream, styles, resources, invariants, dump format |
 | [Layout and rendering](docs/design/layout-and-rendering.md) | Layout pipeline, drawing, the text view, tiling, gestures |
+| [Text transitions](docs/design/text-transitions.md) | Numeric text transition: glyph atoms, host, effect, comparison with SwiftUI |
 | [Roadmap](docs/design/roadmap.md) | Progress checklist |
 | [Decisions](docs/design/decisions.md) | Decision log and open questions |
 

@@ -71,6 +71,35 @@ Newest last. Entries 1–33 are from 2026-10-13; 34 onward from 2026-10-14.
     - **Empty truncation token.** With an empty token, CoreText keeps one run whose string range still covers the cut text, so a truncated line reported every character as visible. A truncated line's visible end now comes from its last glyph's character, widened to the whole composed sequence.
     - **Truncation token setter.** `ATRTextDisplayView` treats a nil token as U+2026 when matching layouts, but switching between nil and U+2026 still threw the layout away. The setter now compares the normalized tokens.
 
+44. **Text transitions come from the author's other project, re-implemented on this engine's layers.** The motion and parameters are unchanged. The structure follows this repository:
+    - Per-glyph atoms are computed in C++ (`atr::glyphAtoms`), since they need CoreText.
+    - The bitmap and atoms cross as `ATRGlyphSnapshot`.
+    - The host logic lives in `ATRTextDisplayView`.
+    - The Metal effect is ObjC++ in the view target. Swift only resolves the effect and maps outcomes.
+    - Design: [text-transitions.md](text-transitions.md).
+45. **Glyph atoms are designed here, not copied.** The source's tiling code was not available.
+    - Keys use an interned font identity (PostScript name and size) plus the glyph ID, so equal glyphs match across documents.
+    - Tiles split at the middle of ink gaps and never overlap.
+    - Zero-advance glyphs lend their ink to their base glyph.
+    - `inkHeight` is at least the cap height, so separators roll as far as digits.
+46. **The numeric effect is iOS only for now.** On macOS `begin` returns NO and the text is replaced (`.skipped`). The renderer store still answers `prewarm` (`failed`, then `alreadyFailed`).
+47. **Changes to the effect.** Behavior is unchanged except for these:
+    - A finish waits for asynchronous bitmaps, so `rendersAsynchronously` shows no blank frame.
+    - The overlay is a `CAMetalLayer` view with a display link, not `MTKView`.
+    - All tiles of a snapshot are uploaded in one command buffer.
+    - Vertex buffers rotate through three, so a frame in flight is never overwritten.
+    - The overlay layer uses sRGB.
+    - A negative stagger span is clamped to zero.
+48. **The comparison with SwiftUI is recorded, not tuned.** The Transitions demo page puts the effect above SwiftUI's own. Frame-by-frame recordings match on roll, blur, scale, direction, stagger, and the odometer rule.
+    - Kept glyphs that slide start about 80 ms later in SwiftUI.
+    - Trailing glyphs added to a growing number enter near their final place in SwiftUI.
+    - Both differences were in the source implementation and are left as they are until the rule behind them is known.
+49. **New headers in an umbrella `include/` directory need the explicit module cache cleared.** SwiftPM and Xcode reuse a precompiled module for the target, and it misses the new header ("expected a type"). Delete `.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules` (for `swift build`) or the same folder under DerivedData (for `xcodebuild`).
+50. **The numeric text shader is compiled at build time.**
+    - The source shader was compiled from a string at runtime, which takes tens of milliseconds. `ATRNumericText.metal` is now a resource of `AttributedViewObjC`, and SwiftPM and Xcode compile it into the target bundle's `default.metallib`. This was verified with `swift build`, `xcodebuild` for the iOS Simulator, and the Demo app bundle.
+    - The cost: anyone building the package needs the Metal Toolchain, a separate download since Xcode 26 (`xcodebuild -downloadComponent MetalToolchain`). Without it the build fails at `CompileMetalFile`.
+    - `prewarm` stays, because building the pipeline state still costs milliseconds on first use.
+
 ## Open questions
 
 - Text selection on iOS: a read-only `UITextInput` with `UITextInteraction(.nonEditable)` (preferred), or custom handles and menus? See [text-geometry.md](text-geometry.md).
@@ -80,6 +109,7 @@ Newest last. Entries 1–33 are from 2026-10-13; 34 onward from 2026-10-14.
   - The rect uses typographic bounds rather than ink bounds.
   - Matching runs need not be adjacent.
   - Gradients apply to `Text` only. Should `Paragraph` get a gradient modifier as well?
+- Text transitions: macOS support, migrating `blurReplace`, and whether to adopt SwiftUI's kept-glyph delay and trailing-glyph placement. See [text-transitions.md](text-transitions.md).
 - Delete the legacy `docs/api`, `docs/guides`, and `docs/specifications`?
 - Underline decorations, chosen without confirmation:
   - Should underlines skip descenders the way native iOS underlines do?
